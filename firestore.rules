@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: tickets
+    // Document ID: ticketId
+    // Fields:
+    //   - id: string (required)
+    //   - purchaseId: string (required)
+    //   - attendeeName: string (required, 1-100 chars)
+    //   - attendeeEmail: string (required, valid email)
+    //   - attendeePhone: string (optional)
+    //   - qrCode: string (required, unique)
+    //   - status: string (required, enum: ['pending', 'scanned'])
+    //   - scannedAt: string (optional, ISO 8601)
+    //   - createdAt: string (required, ISO 8601)
+    //   - type: string (required, enum: ['general', 'vip'])
+    //
+    // Collection: purchases
+    // Document ID: purchaseId
+    // Fields:
+    //   - id: string (required)
+    //   - buyerName: string (required)
+    //   - buyerEmail: string (required)
+    //   - totalTickets: number (required, > 0)
+    //   - amount: number (required, >= 0)
+    //   - status: string (required, enum: ['completed', 'pending'])
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: questions
+    // Document ID: questionId
+    // Fields:
+    //   - id: string (required)
+    //   - text: string (required, 1-500 chars)
+    //   - authorName: string (optional)
+    //   - createdAt: string (required, ISO 8601)
+    //   - isAnswered: boolean (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "rennergymx@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isOwner(email) {
+      return isAuthenticated() && request.auth.token.email == email;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /tickets/{ticketId} {
+      // Allow read for admin or owner
+      allow read: if isAdmin() || isOwner(resource.data.attendeeEmail);
+
+      // Allow create for admin or during checkout (simulated by allowing anyone for now, but in real app we'd lock this)
+      // For this prototype, we'll allow create if data is valid
+      allow create: if (isAdmin() || isAuthenticated()) && 
+        request.resource.data.attendeeName is string && 
+        request.resource.data.attendeeName.size() > 0 &&
+        isValidEmail(request.resource.data.attendeeEmail) &&
+        request.resource.data.status == 'pending';
+
+      // Allow update for admin (to scan)
+      allow update: if isAdmin() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'scannedAt']) &&
+        request.resource.data.status == 'scanned';
+    }
+
+    match /purchases/{purchaseId} {
+      allow read: if isAdmin() || isOwner(resource.data.buyerEmail);
+      allow create: if isAuthenticated() && 
+        request.resource.data.buyerName is string &&
+        isValidEmail(request.resource.data.buyerEmail) &&
+        request.resource.data.totalTickets > 0;
+      allow update: if isAdmin();
+    }
+
+    match /questions/{questionId} {
+      allow read: if true; // Publicly readable for the event screen
+      allow create: if request.resource.data.text is string && 
+        request.resource.data.text.size() > 0 &&
+        request.resource.data.text.size() < 500;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

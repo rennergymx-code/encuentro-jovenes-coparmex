@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "ticket": {
+      "title": "Ticket",
+      "description": "Un boleto individual para el evento.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "purchaseId": { "type": "string" },
+        "attendeeName": { "type": "string" },
+        "attendeeEmail": { "type": "string" },
+        "attendeePhone": { "type": "string" },
+        "qrCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "scanned"] },
+        "scannedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["general", "vip"] }
+      },
+      "required": ["id", "attendeeName", "attendeeEmail", "status", "qrCode"]
+    },
+    "purchase": {
+      "title": "Purchase",
+      "description": "Registro de una compra de uno o más boletos.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "buyerEmail": { "type": "string" },
+        "totalTickets": { "type": "number" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed", "pending"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "buyerName", "buyerEmail", "totalTickets", "amount", "status"]
+    },
+    "question": {
+      "title": "Question",
+      "description": "Pregunta enviada por un asistente durante el evento.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isAnswered": { "type": "boolean" }
+      },
+      "required": ["id", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/tickets/{ticketId}": {
+      "schema": "ticket",
+      "description": "Colección de boletos individuales."
+    },
+    "/purchases/{purchaseId}": {
+      "schema": "purchase",
+      "description": "Colección de registros de compra."
+    },
+    "/questions/{questionId}": {
+      "schema": "question",
+      "description": "Colección de preguntas para el Q&A."
+    }
+  }
+}

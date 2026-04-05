@@ -1,0 +1,5 @@
+{
+  "name": "Encuentro Jóvenes COPARMEX",
+  "description": "Plataforma de gestión de eventos con venta de boletos, QRs de acceso y dashboard de organizador.",
+  "requestFramePermissions": ["camera"]
+}
