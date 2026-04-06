@@ -146,7 +146,7 @@ export default function Dashboard({ forceTab }: DashboardProps) {
                 <p className="text-slate-500 font-black uppercase font-mono text-[10px] tracking-widest mb-1">Ingresos de Venta</p>
                 <div className="flex items-baseline gap-2">
                   <h4 className="text-4xl font-black">${purchases.reduce((acc, p) => acc + (p.amount || 0), 0).toLocaleString()}</h4>
-                  <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">+12% vs ayer</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">0% crecimiento</span>
                 </div>
               </div>
 
