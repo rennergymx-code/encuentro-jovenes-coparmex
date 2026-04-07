@@ -55,7 +55,11 @@ export default function PrivacyPage({ onBack }: PrivacyPageProps) {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 uppercase tracking-wider">1. Identidad y Domicilio del Responsable</h2>
             <p>
-              El presente Aviso de Privacidad es aplicable al CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P., conocido institucionalmente como COPARMEX SONORA NORTE, siendo éste el “Responsable” en términos de lo dispuesto en la Ley. El domicilio convencional de COPARMEX SONORA NORTE se encuentra ubicado en la Ciudad de Hermosillo, Sonora, México.
+              El presente Aviso de Privacidad es aplicable al **CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P.** (conocido institucionalmente como COPARMEX SONORA NORTE), con RFC **CEN811214EKA** y Régimen Fiscal **603 (Personas Morales con Fines no Lucrativos)**, siendo éste el “Responsable” en términos de lo dispuesto en la Ley. 
+            </p>
+            <p className="mt-4">
+              El domicilio fiscal y convencional del Responsable se encuentra ubicado en: <br />
+              **Blvd. Antonio Quiroga 108, Fracc. Real de Quiroga, C.P. 83224, Hermosillo, Sonora, México.**
             </p>
           </section>
 
@@ -70,7 +74,11 @@ export default function PrivacyPage({ onBack }: PrivacyPageProps) {
               <li>Facturación y comprobación fiscal por concepto de la venta de accesos.</li>
               <li>Fines estadísticos, de análisis de alcance del evento y de vinculación con la comunidad empresarial.</li>
               <li>Gestionar el acceso, control y seguridad el día del evento.</li>
+              <li>Captación y uso de imágenes y registro audiovisual del evento para fines de difusión, promoción y archivo histórico del "Encuentro" en medios de comunicación y redes sociales corporativas.</li>
             </ul>
+            <p className="mt-4">
+              En relación con el registro audiovisual, COPARMEX SONORA NORTE garantiza que en caso de que el Titular desee solicitar el retiro de alguna imagen específica donde aparezca de forma identificable, podrá hacerlo enviando una solicitud a los medios de contacto oficiales.
+            </p>
             <p className="mt-4">
               Para cumplir con estas finalidades, COPARMEX SONORA NORTE podrá compartir con terceros patrocinadores o aliados logísticos, únicamente información disociada o datos de contacto sumamente necesarios (como el registro de gafetes), asegurando en todo momento que su uso se restrinja al evento o a beneficios directos relacionados con el mismo.
             </p>
@@ -113,8 +121,9 @@ export default function PrivacyPage({ onBack }: PrivacyPageProps) {
 
           <section className="pt-8 border-t border-white/5">
             <p className="text-xs text-white/40 italic">
-              Última actualización: 05 de Abril, 2026. <br />
-              CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P.
+              Última actualización: 07 de Abril, 2026. <br />
+              CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P. (CEN811214EKA) <br />
+              Hermosillo, Sonora.
             </p>
           </section>
         </div>

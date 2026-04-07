@@ -45,7 +45,7 @@ export default function TermsPage({ onBack }: TermsPageProps) {
               Bienvenido al sitio web del evento "Encuentro Jóvenes Coparmex". Lea estos términos detenidamente antes de adquirir su carnet a través de nuestro sitio web y/o antes de hacer uso de nuestros servicios en general. Al iniciar el uso de este sitio o ante la contratación de nuestros servicios, se presume que usted ha leído y consentido estos términos y condiciones. Al utilizar este sitio electrónicamente o cualquiera de nuestros servicios, el Usuario reconoce que ha leído y aceptado sujetarse por estos términos y condiciones en toda su extensión y con todo su alcance legal.
             </p>
             <p className="mt-4">
-              Los siguientes términos y condiciones para el uso del portal (las “Reglas de Uso”) son aplicables al sitio web del evento, propiedad del CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P. (“COPARMEX SONORA NORTE”).
+              Los siguientes términos y condiciones para el uso del portal (las “Reglas de Uso”) son aplicables al sitio web del evento, propiedad del **CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P.** (“COPARMEX SONORA NORTE”), con domicilio fiscal en: **Blvd. Antonio Quiroga 108, Fracc. Real de Quiroga, C.P. 83224, Hermosillo, Sonora, México.**
             </p>
             <p className="mt-4">
               Para efectos de las presentes Reglas de Uso del Portal, se considerará usuario al: (i) público en general y/o (ii) cliente o afiliado que haya adquirido un carnet de acceso a través de nuestro Portal (el “Usuario”). El Usuario acepta plena e incondicionalmente tanto las Reglas de Uso del Portal, como el Aviso de Privacidad (conjuntamente, el “Aviso Legal”). COPARMEX SONORA NORTE se reserva el derecho de actualizar o revisar estos términos sin previo aviso; revise estos términos periódicamente para enterarse de cualesquier cambios.
@@ -117,16 +117,20 @@ export default function TermsPage({ onBack }: TermsPageProps) {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 uppercase tracking-wider">7. Legislación y Tribunales</h2>
+            <h2 className="text-xl font-bold text-white mb-4 uppercase tracking-wider">8. Uso de Imagen y Registro Audiovisual</h2>
             <p>
-              Este acuerdo, las Reglas de Uso y la participación en el evento, deberán regirse por las leyes competentes del Estado de Sonora y de la República Mexicana. Cualquier controversia será sometida ante los tribunales competentes de la Ciudad de Hermosillo, Sonora.
+              Al adquirir el carnet y asistir al evento, el Usuario reconoce y acepta que COPARMEX SONORA NORTE o terceros autorizados realizarán registros audiovisuales (fotografía y video) del evento para su difusión masiva en medios digitales, impresos y redes sociales corporativas. 
+            </p>
+            <p className="mt-4">
+              El Usuario autoriza de manera gratuita e indefinida el uso de su imagen (rostro, voz y semblante) únicamente en el contexto de la promoción del "Encuentro". En caso de que el Usuario desee solicitar el retiro de alguna imagen específica donde aparezca de forma identificable, podrá contactar a los organizadores a través de los canales de comunicación oficiales brindados en el Portal.
             </p>
           </section>
 
           <section className="pt-8 border-t border-white/5">
             <p className="text-xs text-white/40 italic">
-              Última actualización: 05 de Abril, 2026. <br />
-              CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P.
+              Última actualización: 07 de Abril, 2026. <br />
+              CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P. (CEN811214EKA) <br />
+              Hermosillo, Sonora.
             </p>
           </section>
         </div>

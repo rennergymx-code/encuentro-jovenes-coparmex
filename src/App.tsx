@@ -16,6 +16,7 @@ import PrivacyPage from './components/PrivacyPage';
 import TravelPage from './components/TravelPage';
 import AskQuestion from './components/AskQuestion';
 import QAProjection from './components/QAProjection';
+import CookieBanner from './components/CookieBanner';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
 export default function App() {
@@ -107,6 +108,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 bg-mesh selection:bg-orange-500/30 overflow-x-hidden">
       <Toaster position="top-right" theme="dark" richColors />
+      <CookieBanner />
       
       {isManagementArea && (
         <Sidebar 

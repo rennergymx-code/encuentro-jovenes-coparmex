@@ -90,6 +90,8 @@ function CardBack({ session }: { session: Session; key?: React.Key }) {
         background: '#0b0b14',
         border: `2px solid ${color}60`,
         backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        transform: 'translateZ(1px)',
         boxShadow: `0 0 0 1px rgba(0,0,0,0.5) inset, 0 4px 32px ${color}20`,
       }}
     >
@@ -165,7 +167,8 @@ function CardFront({ session, onHeightChange }: { session: Session; onHeightChan
            background: isMystery ? 'linear-gradient(145deg, #0f0920 0%, #0d0d18 100%)' : 'linear-gradient(145deg, #0d0d18 0%, #13131f 100%)',
            border: `1px solid ${color}35`,
            backfaceVisibility: 'hidden',
-           transform: 'rotateY(180deg)',
+           WebkitBackfaceVisibility: 'hidden',
+           transform: 'rotateY(180deg) translateZ(1px)',
          }}>
       <div className="h-1 w-full flex-shrink-0" style={{ background: color }} />
 
