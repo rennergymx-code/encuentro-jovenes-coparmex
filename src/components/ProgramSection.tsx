@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'motion/react';
-import { Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lock, ChevronDown, Clock } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 import { PROGRAM, type Speaker, type Session } from '../data/program';
 
 // ─── Speaker Cards ─────────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ function HiddenSpeakerCard({ role }: { role: string }) {
           <Lock className="w-4 h-4 text-white/50" />
         </div>
       </div>
-      <p className="text-xs font-black text-white/20 tracking-widest">???</p>
+      <p className="text-[10px] font-black text-white/40 tracking-wider">Invitado Sorpresa</p>
       <p className="text-[10px] text-white/15 text-center leading-tight max-w-[70px]">{role}</p>
     </motion.div>
   );
@@ -77,7 +78,7 @@ const CARD_CONFIGS: Record<string, { suit: string; rank: string; color: string; 
   especial:     { suit: '♦', rank: 'I',  color: '#FF5100' },
 };
 
-function CardBack({ session }: { session: Session }) {
+function CardBack({ session }: { session: Session; key?: React.Key }) {
   const cfg = CARD_CONFIGS[session.type] || CARD_CONFIGS.conferencia;
   const color = cfg.color;
   const cardImage = SESSION_IMAGES[session.id] || '/assets/branding/desert.png';
@@ -113,6 +114,16 @@ function CardBack({ session }: { session: Session }) {
         <div className="absolute inset-0" style={{ background: `${color}10`, mixBlendMode: 'overlay' }} />
       </div>
 
+      {/* Horario en esquina superior derecha para Registro y After */}
+      {(session.id === 'registro' || session.id === 'after') && (
+        <div className="absolute top-6 right-6 z-30">
+          <span className="text-[10px] font-black tracking-tight text-white/90 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 uppercase shadow-2xl">
+            <Clock className="w-3 h-3 text-branding-orange" />
+            {session.id === 'registro' ? '7:30 - 8:00 am' : '2:00 - 5:00 pm'}
+          </span>
+        </div>
+      )}
+
       <div className="absolute bottom-0 left-0 right-0 z-20 px-5 pb-4 pt-16"
            style={{ background: `linear-gradient(to top, rgba(11,11,20,0.97) 60%, transparent)` }}>
         <p className="text-[9px] font-black uppercase tracking-[0.25em] text-center mb-1" style={{ color }}>{session.badge}</p>
@@ -130,7 +141,7 @@ function CardBack({ session }: { session: Session }) {
   );
 }
 
-function CardFront({ session, onHeightChange }: { session: Session; onHeightChange: (h: number) => void }) {
+function CardFront({ session, onHeightChange }: { session: Session; onHeightChange: (h: number) => void; key?: React.Key }) {
   const { badge, title, subtitle, tagline, value, speakers, isMystery, accentColor } = session;
   const color = accentColor || '#FF5100';
   const [speakersOpen, setSpeakersOpen] = useState(true);
@@ -149,7 +160,7 @@ function CardFront({ session, onHeightChange }: { session: Session; onHeightChan
   }, [onHeightChange]);
 
   return (
-    <div className="absolute inset-0 rounded-2xl flex flex-col"
+    <div className="absolute inset-0 rounded-2xl flex flex-col overflow-hidden"
          style={{
            background: isMystery ? 'linear-gradient(145deg, #0f0920 0%, #0d0d18 100%)' : 'linear-gradient(145deg, #0d0d18 0%, #13131f 100%)',
            border: `1px solid ${color}35`,
@@ -160,13 +171,23 @@ function CardFront({ session, onHeightChange }: { session: Session; onHeightChan
 
       <div ref={contentRef} className="p-5 flex flex-col gap-3">
         
-        <span className="text-[9px] font-black uppercase tracking-[0.25em] self-start px-2.5 py-1 rounded-full text-white"
-              style={{ background: `${color}20`, border: `1px solid ${color}40` }}>
-          {badge}
-        </span>
+        <div className="flex justify-between items-center w-full">
+          <span className="text-[9px] font-black uppercase tracking-[0.25em] px-2.5 py-1 rounded-full text-white"
+                style={{ background: `${color}20`, border: `1px solid ${color}40` }}>
+            {badge}
+          </span>
+          {/* Solo mostrar horario para REGISTRO y EL AFTER */}
+          {session.time && (session.id === 'registro' || session.id === 'after') && (
+            <span className="text-[10px] font-black text-white/50 tracking-tighter tabular-nums flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded-lg">
+              <Clock className="w-3 h-3 text-branding-orange" /> {session.time}
+            </span>
+          )}
+        </div>
 
         <div>
-          <h3 className="text-xl font-black uppercase tracking-tight text-white leading-tight">{title}</h3>
+          <h3 className="text-xl font-black uppercase tracking-tight text-white leading-tight">
+            {session.id === 'after' ? 'EL AFTER: TACOS, CHEVES Y DEALS' : title}
+          </h3>
           {subtitle && <p className="text-[11px] text-white/35 uppercase tracking-wide mt-1">{subtitle}</p>}
         </div>
 
@@ -190,7 +211,7 @@ function CardFront({ session, onHeightChange }: { session: Session; onHeightChan
             </div>
 
             <button onClick={(e) => { e.stopPropagation(); setSpeakersOpen(!speakersOpen); }}
-              className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 hover:text-white/60 transition-colors mt-auto py-3 border-t border-white/5 w-full bg-[#0d0e1a]/90 sticky bottom-0 backdrop-blur-md"
+              className="flex items-center gap-2 text-[10px] font-black uppercase text-white/30 hover:text-white/60 transition-colors mt-auto py-3 border-t border-white/5 w-full bg-[#0d0e1a]/90 backdrop-blur-md"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${speakersOpen ? 'rotate-180' : ''}`} />
               {speakersOpen ? 'OCULTAR DETALLES' : 'VER PARTICIPANTES'}
@@ -198,12 +219,19 @@ function CardFront({ session, onHeightChange }: { session: Session; onHeightChan
             </button>
           </div>
         )}
+        {session.id === 'after' && (
+          <div className="mt-4 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center mb-6">
+            <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest leading-relaxed">
+              * Acceso exclusivo para los que hayan estado en el evento
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function FlipCard({ session, shuffleDelay }: { session: Session; shuffleDelay: number }) {
+function FlipCard({ session, shuffleDelay }: { session: Session; shuffleDelay: number; key?: React.Key }) {
   const [flipped, setFlipped] = useState(false);
   const [frontHeight, setFrontHeight] = useState(460);
 
@@ -215,7 +243,7 @@ function FlipCard({ session, shuffleDelay }: { session: Session; shuffleDelay: n
         y: 0, 
         rotate: 0, 
         scale: 1,
-        height: flipped ? Math.max(frontHeight + 12, 460) : 460 
+        height: flipped ? Math.max(frontHeight + 32, 460) : 460 
       }}
       transition={{ 
         type: 'spring', 
@@ -241,29 +269,76 @@ function FlipCard({ session, shuffleDelay }: { session: Session; shuffleDelay: n
   );
 }
 
-function shuffleKeepFirst<T>(arr: T[]): T[] {
-  if (arr.length <= 1) return arr;
-  const [first, ...rest] = arr;
-  for (let i = rest.length - 1; i > 0; i--) {
+function shuffleKeepEnds<T>(arr: T[]): T[] {
+  if (arr.length <= 2) return arr;
+  const first = arr[0];
+  const last = arr[arr.length - 1];
+  const middle = arr.slice(1, -1);
+  
+  for (let i = middle.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [rest[i], rest[j]] = [rest[j], rest[i]];
+    [middle[i], middle[j]] = [middle[j], middle[i]];
   }
-  return [first, ...rest];
+  
+  return [first, ...middle, last];
 }
 
 export default function ProgramSection({ onBuyTickets }: { onBuyTickets: () => void }) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { once: true, margin: '-100px' });
-  const [shuffledProgram, setShuffledProgram] = useState(PROGRAM);
+  const [shuffledProgram, setShuffledProgram] = useState<Session[]>([]);
   const [ready, setReady] = useState(false);
+  const [fullProgram, setFullProgram] = useState<Session[]>(PROGRAM);
 
   useEffect(() => {
-    if (isInView) {
-      setShuffledProgram(shuffleKeepFirst([...PROGRAM]));
+    async function fetchAgenda() {
+      try {
+        const { data, error } = await supabase
+          .from('agenda')
+          .select('*')
+          .order('time', { ascending: true });
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const mapped = data.map((s: any) => ({
+            id: s.id_string,
+            badge: s.badge,
+            title: s.title,
+            subtitle: s.subtitle,
+            tagline: s.tagline,
+            value: s.value,
+            speakers: s.speakers || [],
+            isHighlight: s.is_public,
+            isMystery: s.is_surprise,
+            accentColor: s.bg_color,
+            time: s.time,
+            type: s.type
+          }));
+          setFullProgram(mapped);
+        }
+      } catch (err) {
+        console.error("Error fetching agenda from Supabase:", err);
+      }
+    }
+
+    fetchAgenda();
+  }, []);
+
+  const filteredProgram = useMemo(() => {
+    return fullProgram.filter(s => {
+      const id = (s.id || '').toLowerCase();
+      const hideIds = ['anuncios', 'break1', 'break2', 'break3', 'cierre', 'extra'];
+      return !hideIds.includes(id);
+    });
+  }, [fullProgram]);
+
+  useEffect(() => {
+    if (isInView && filteredProgram.length > 0) {
+      setShuffledProgram(shuffleKeepEnds([...filteredProgram]));
       const t = setTimeout(() => setReady(true), 400);
       return () => clearTimeout(t);
     }
-  }, [isInView]);
+  }, [isInView, filteredProgram]);
 
   return (
     <section ref={sectionRef} className="relative py-24 px-6 overflow-hidden">

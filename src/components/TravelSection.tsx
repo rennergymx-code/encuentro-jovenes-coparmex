@@ -3,24 +3,34 @@ import { motion } from 'motion/react';
 import { MapPin, Hotel, Phone, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const PREVIEW_HOTELS = [
+const TRAVEL_ITEMS = [
+  {
+    name: 'Eventos Partenón',
+    type: 'Sede del Evento',
+    address: 'Blvd. Antonio Quiroga, Hermosillo',
+    link: 'https://maps.app.goo.gl/kSPnzJwCzk3XibCz8',
+    image: '/assets/guia-viaje/partenon.jpg'
+  },
   {
     name: 'Hotel Santorian',
+    type: 'Hospedaje Recomendado',
     address: 'Hermosillo, Sonora',
-    phone: '662 213 3131',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+    link: 'https://maps.app.goo.gl/QNEKnpkcCPN2vrFK7',
+    image: '/assets/guia-viaje/santorian.jpg'
   },
   {
     name: 'Hotel San Angel',
+    type: 'Hospedaje Recomendado',
     address: 'Blvd. García Morales, Hermosillo',
-    phone: '662 259 8100',
-    image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+    link: 'https://maps.app.goo.gl/Dzgj9GCaC4wYtiZi7',
+    image: '/assets/guia-viaje/san-angel.jpg'
   },
   {
     name: 'Hotel Royal Palace',
+    type: 'Hospedaje Recomendado',
     address: 'Blvd. García Morales 306, Hermosillo',
-    phone: '662 236 3333',
-    image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+    link: 'https://maps.app.goo.gl/yCF9jkSU4BDtxRCX9',
+    image: '/assets/guia-viaje/royal-palace.jpg'
   }
 ];
 
@@ -50,42 +60,49 @@ export default function TravelSection() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {PREVIEW_HOTELS.map((hotel, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {TRAVEL_ITEMS.map((item, i) => (
             <motion.div
-              key={hotel.name}
+              key={item.name}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="premium-card group overflow-hidden border-white/5"
+              className="premium-card group overflow-hidden border-white/5 flex flex-col h-full"
             >
-              <div className="h-40 -mx-6 -mt-6 mb-6 overflow-hidden">
+              <div className="h-40 -mx-6 -mt-6 mb-6 overflow-hidden bg-white/5">
                 <img 
-                  src={hotel.image} 
-                  alt={hotel.name} 
+                  src={item.image} 
+                  alt={item.name} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-100" 
+                  onError={(e) => {
+                    // Fallback to a placeholder if image doesn't exist yet
+                    (e.target as HTMLImageElement).src = `https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`;
+                  }}
                 />
               </div>
-              <h3 className="text-xl font-black mb-4 uppercase text-white group-hover:text-branding-orange transition-colors">{hotel.name}</h3>
+              <div className="mb-2">
+                <span className="text-[#FF5100]/60 text-[9px] font-black uppercase tracking-widest">{item.type}</span>
+              </div>
+              <h3 className="text-xl font-black mb-4 uppercase text-white group-hover:text-branding-orange transition-colors leading-tight">{item.name}</h3>
               
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-2 text-[10px] text-white/30 font-bold uppercase tracking-widest">
-                  <MapPin className="w-3 h-3 text-branding-orange" />
-                  {hotel.address}
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-white/30 font-bold uppercase tracking-widest">
-                  <Phone className="w-3 h-3 text-branding-orange" />
-                  {hotel.phone}
+              <div className="space-y-3 mb-8">
+                <div className="flex items-start gap-2 text-[10px] text-white/30 font-bold uppercase tracking-widest leading-relaxed">
+                  <MapPin className="w-3 h-3 text-branding-orange flex-shrink-0 mt-0.5" />
+                  {item.address}
                 </div>
               </div>
 
-              <Link 
-                to="/guia-viaje"
-                className="inline-block text-[10px] font-black uppercase tracking-widest text-[#FF5100] border-b border-branding-orange/20 pb-1 hover:border-branding-orange transition-all"
-              >
-                Detalles de Reservación
-              </Link>
+              <div className="mt-auto">
+                <a 
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-[10px] font-black uppercase tracking-widest text-[#FF5100] border-b border-branding-orange/20 pb-1 hover:border-branding-orange transition-all"
+                >
+                  CONTACTO
+                </a>
+              </div>
             </motion.div>
           ))}
         </div>

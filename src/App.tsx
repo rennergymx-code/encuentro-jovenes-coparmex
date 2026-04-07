@@ -3,9 +3,6 @@ import Sidebar from './components/layout/Sidebar';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X, ShoppingCart, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { AppArea } from './types';
-import AdminSuite from './components/modules/Admin/AdminSuite';
-import SalesSuite from './components/modules/Sales/SalesSuite';
-import EngSuite from './components/modules/Eng/EngSuite';
 import { Toaster } from 'sonner';
 import { supabase } from './services/supabaseClient';
 import LandingPage from './components/LandingPage';
@@ -77,9 +74,20 @@ export default function App() {
 
   const handleLoginSuccess = () => {
     setIsDevAdmin(localStorage.getItem('coparmex_dev_admin') === 'true');
+    setIsMobileMenuOpen(false);
+    setIsSidebarOpen(window.innerWidth >= 1024);
     navigate('/dashboard');
     setActiveArea('admin');
   };
+
+  // Close menus on navigation
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    // Only auto-close sidebar on mobile when navigating
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  }, [location.pathname]);
 
   const scrollToHash = (id: string) => {
     navigate('/');
@@ -102,11 +110,9 @@ export default function App() {
       
       {isManagementArea && (
         <Sidebar 
-          activeArea={activeArea} 
-          activeTab={activeTab}
-          isOpen={isSidebarOpen}
+          isOpen={isSidebarOpen} 
           setIsOpen={setIsSidebarOpen}
-          onAreaChange={(area) => { setActiveArea(area); navigate(`/${area}`); }}
+          activeTab={activeTab}
           onTabChange={setActiveTab}
         />
       )}
@@ -163,7 +169,11 @@ export default function App() {
               {/* Placeholder for future expansion */}
               <Route path="/admin/reportes" element={<div className="max-w-7xl mx-auto py-8 text-center text-white/20 uppercase font-black py-20">Módulo de Reportes en Desarrollo</div>} />
               <Route path="/admin/usuarios" element={<div className="max-w-7xl mx-auto py-8 text-center text-white/20 uppercase font-black py-20">Gestión de Usuarios en Desarrollo</div>} />
-              <Route path="/admin/config" element={<div className="max-w-7xl mx-auto py-8 text-center text-white/20 uppercase font-black py-20">Configuración del Sistema en Desarrollo</div>} />
+              <Route path="/admin/config" element={
+                <div className="max-w-7xl mx-auto py-8">
+                  <Dashboard key="config" forceTab="config" />
+                </div>
+              } />
             </>
           )}
         </Routes>

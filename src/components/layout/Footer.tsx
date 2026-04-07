@@ -44,7 +44,7 @@ export default function Footer({ onNavigate }: FooterProps) {
             </p>
             <div className="flex gap-4">
               {[Facebook, Instagram, Linkedin, Twitter].map((Icon, i) => (
-                <a key={i} href="#" className="w-9 h-9 rounded-full bg-white/5 hover:bg-branding-orange/20 border border-white/10 flex items-center justify-center text-white/50 hover:text-branding-orange transition-all">
+                <a key={`social-${i}`} href="#" className="w-9 h-9 rounded-full bg-white/5 hover:bg-branding-orange/20 border border-white/10 flex items-center justify-center text-white/50 hover:text-branding-orange transition-all">
                   <Icon className="w-4 h-4" />
                 </a>
               ))}
@@ -56,7 +56,7 @@ export default function Footer({ onNavigate }: FooterProps) {
             <h4 className="text-white font-black uppercase tracking-widest text-xs mb-8">Navegación</h4>
             <ul className="space-y-4">
               {navLinks.map((link) => (
-                <li key={link.id}>
+                <li key={link.id || link.to}>
                 {link.to ? (
                   <Link 
                     to={link.to}

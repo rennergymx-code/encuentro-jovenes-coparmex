@@ -36,13 +36,15 @@ import TicketsTab from './modules/Admin/TicketsTab';
 import QATab from './modules/Admin/QATab';
 import AgendaTab from './modules/Admin/AgendaTab';
 import SponsorsTab from './modules/Admin/SponsorsTab';
+import ConfigTab from './modules/Admin/ConfigTab';
 import { PROGRAM } from '../data/program';
 import { SPONSORS } from '../data/sponsors';
 
-type Tab = 'overview' | 'checkin' | 'agenda' | 'tickets' | 'sponsors' | 'qa';
+type Tab = 'overview' | 'checkin' | 'agenda' | 'tickets' | 'sponsors' | 'qa' | 'config';
 
 interface DashboardProps {
   forceTab?: Tab;
+  key?: React.Key;
 }
 
 export default function Dashboard({ forceTab }: DashboardProps) {
@@ -90,7 +92,7 @@ export default function Dashboard({ forceTab }: DashboardProps) {
         supabase.from('tickets').select('*').order('created_at', { ascending: false }),
         supabase.from('purchases').select('*').order('created_at', { ascending: false }),
         supabase.from('questions').select('*').order('created_at', { ascending: false }),
-        supabase.from('sessions').select('*').order('created_at', { ascending: false }),
+        supabase.from('agenda').select('*').order('time', { ascending: true }),
         supabase.from('sponsors').select('*').order('created_at', { ascending: false })
       ]);
 
@@ -98,15 +100,132 @@ export default function Dashboard({ forceTab }: DashboardProps) {
       if (pData) setPurchases(pData);
       if (qData) setQuestions(qData);
       
-      // If DB has sessions/sponsors, merge or use them. Otherwise keep static.
-      if (sData && sData.length > 0) setSessions(sData);
-      if (spData && spData.length > 0) setSponsorsList(spData);
+      // Map Agenda: DB snake_case -> Frontend camelCase
+      if (sData && sData.length > 0) {
+        const mappedSessions = sData.map((s: any) => ({
+          id: s.id_string,
+          time: s.time,
+          type: s.type,
+          badge: s.badge,
+          title: s.title,
+          subtitle: s.subtitle,
+          tagline: s.tagline,
+          value: s.value,
+          speakers: s.speakers || [],
+          isHighlight: s.is_public,
+          isMystery: s.is_surprise,
+          accentColor: s.bg_color,
+          created_at: s.created_at
+        }));
+        setSessions(mappedSessions);
+      }
+      
+      // Map Sponsors: DB snake_case -> Frontend camelCase
+      if (spData && spData.length > 0) {
+        const mappedSponsors = spData.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          logo: s.logo,
+          tier: s.tier,
+          contribution: s.contribution,
+          paymentStatus: s.payment_status, // CRITICAL FIX: Ensure frontend sees paymentStatus
+          created_at: s.created_at
+        }));
+        setSponsorsList(mappedSponsors);
+      }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     } finally {
       setLoading(false);
     }
   }
+
+  // ─── Refined Change Handlers with Confirmation ─────────────────────────────
+  
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ show: false, title: '', message: '', onConfirm: () => {} });
+
+  const handleAgendaChange = (updatedSessions: any[]) => {
+    // Solo actualizar estado local inmediatamente para fluidez visual
+    setSessions(updatedSessions);
+    
+    // Preparar confirmación para persistencia
+    setConfirmModal({
+      show: true,
+      title: 'Actualizar Programa',
+      message: '¿Estás seguro de guardar estos cambios en la agenda? Se reflejarán inmediatamente en el Landing Page.',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('agenda')
+            .upsert(
+              updatedSessions.map(s => ({
+                id_string: s.id,
+                time: s.time || '',
+                type: s.type || 'conferencia',
+                badge: s.badge || '',
+                title: s.title,
+                subtitle: s.subtitle || '',
+                tagline: s.tagline || '',
+                value: s.value || '',
+                speakers: s.speakers || [],
+                is_public: !!s.isHighlight,
+                is_surprise: !!s.isMystery,
+                bg_color: s.accentColor || '',
+                created_at: s.created_at || new Date().toISOString()
+              })),
+              { onConflict: 'id_string' }
+            );
+
+          if (error) throw error;
+          toast.success("Agenda sincronizada correctamente");
+          setConfirmModal(prev => ({ ...prev, show: false }));
+        } catch (err: any) {
+          console.error("Error updating agenda in Supabase:", err);
+          toast.error("Error al guardar en la base de datos");
+        }
+      }
+    });
+  };
+
+  const handleSponsorsChange = (updatedSponsors: any[]) => {
+    setSponsorsList(updatedSponsors);
+
+    setConfirmModal({
+      show: true,
+      title: 'Actualizar Patrocinadores',
+      message: '¿Estás seguro de guardar los cambios en los patrocinios? Esto afectará el contador de metas y el carrusel de logos.',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('sponsors')
+            .upsert(
+              updatedSponsors.map(s => ({
+                id: s.id,
+                name: s.name,
+                logo: s.logo,
+                tier: s.tier,
+                contribution: s.contribution,
+                payment_status: s.paymentStatus || 'sin_pago', // CRITICAL FIX: Ensure DB sees payment_status
+                updated_at: new Date().toISOString()
+              })),
+              { onConflict: 'id' }
+            );
+
+          if (error) throw error;
+          toast.success("Patrocinadores sincronizados");
+          setConfirmModal(prev => ({ ...prev, show: false }));
+        } catch (err: any) {
+          console.error("Error updating sponsors in Supabase:", err);
+          toast.error("Error al guardar patrocinadores");
+        }
+      }
+    });
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -124,13 +243,16 @@ export default function Dashboard({ forceTab }: DashboardProps) {
         );
 
       case 'agenda':
-        return <AgendaTab sessions={sessions} onRefresh={fetchData} onSessionsChange={setSessions} />;
+        return <AgendaTab sessions={sessions} onRefresh={fetchData} onSessionsChange={handleAgendaChange} />;
 
       case 'sponsors':
-        return <SponsorsTab sponsors={sponsorsList} onRefresh={fetchData} onSponsorsChange={setSponsorsList} />;
+        return <SponsorsTab sponsors={sponsorsList} onRefresh={fetchData} onSponsorsChange={handleSponsorsChange} />;
 
       case 'qa':
         return <QATab questions={questions} sessions={sessions} onRefresh={fetchData} />;
+
+      case 'config':
+        return <ConfigTab />;
 
       case 'overview':
       default:
@@ -193,26 +315,47 @@ export default function Dashboard({ forceTab }: DashboardProps) {
 
             {/* Sub Metrics Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Agenda Status */}
+              {/* Speakers Status */}
               <div className="premium-card">
                 <h5 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-8 flex items-center gap-2">
-                  <Calendar className="w-4 h-4" /> Estado de la Agenda
+                  <Users className="w-4 h-4" /> Ponentes
                 </h5>
                 <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-400">Total Sesiones</span>
-                    <span className="font-black">{sessions.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-400">Sesiones Reveladas</span>
-                    <span className="font-black text-branding-orange">{sessions.filter(s => s.is_revealed).length}</span>
-                  </div>
-                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-4">
-                    <div 
-                      className="h-full bg-branding-orange transition-all duration-1000" 
-                      style={{ width: `${sessions.length > 0 ? (sessions.filter(s => s.is_revealed).length / sessions.length) * 100 : 0}%` }}
-                    />
-                  </div>
+                  {(() => {
+                    const allSpeakers = sessions.flatMap(s => s.speakers || []);
+                    const confirmedCount = allSpeakers.filter((sp: any) => sp.status === 'confirmed').length;
+                    const invitedCount = allSpeakers.filter((sp: any) => sp.status === 'invited').length;
+                    const total = invitedCount + confirmedCount;
+                    
+                    return (
+                      <>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-bold text-slate-400">Total Invitados</span>
+                          <span className="font-black text-white">{total}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            <span className="text-sm font-bold text-slate-400">Confirmados</span>
+                          </div>
+                          <span className="font-black text-emerald-500 text-glow-emerald">{confirmedCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                            <span className="text-sm font-bold text-slate-400">Por Confirmar</span>
+                          </div>
+                          <span className="font-black text-blue-400">{invitedCount}</span>
+                        </div>
+                        <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-4">
+                          <div 
+                            className="h-full bg-emerald-500 transition-all duration-1000 shadow-[0_0_12px_rgba(16,185,129,0.6)]" 
+                            style={{ width: `${total > 0 ? (confirmedCount / total) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -227,12 +370,12 @@ export default function Dashboard({ forceTab }: DashboardProps) {
                     <span className="font-black text-glow-orange text-orange-500">{sponsorsList.length}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-bold text-slate-400">Confirmados</span>
-                    <span className="font-black">{sponsorsList.length}</span>
+                    <span className="font-bold text-slate-400">Confirmados (Pagados)</span>
+                    <span className="font-black text-emerald-500">{sponsorsList.filter(s => s.paymentStatus === 'pagado').length}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-bold text-slate-400">Pendientes</span>
-                    <span className="font-black">2</span>
+                    <span className="font-black">{sponsorsList.filter(s => s.paymentStatus === 'sin_pago' || !s.paymentStatus).length}</span>
                   </div>
                 </div>
               </div>
@@ -243,17 +386,17 @@ export default function Dashboard({ forceTab }: DashboardProps) {
                   <TicketIcon className="w-4 h-4" /> Tipos de Carnet
                 </h5>
                 <div className="space-y-6">
-                  <div className="flex justify-baseline items-center justify-between">
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">VIP / FULL</span>
-                    <span className="font-black">{tickets.filter(t => t.type === 'VIP' || t.type === 'FULL').length}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Acceso General</span>
+                    <span className="font-black">{tickets.filter(t => t.type === 'general').length}</span>
                   </div>
-                  <div className="flex justify-between items-center justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Estudiante</span>
-                    <span className="font-black">{tickets.filter(t => t.type === 'STUDENT').length}</span>
+                    <span className="font-black">{tickets.filter(t => t.type === 'estudiante').length}</span>
                   </div>
-                  <div className="flex justify-between items-center justify-between">
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Staff / Cortesia</span>
-                    <span className="font-black">{tickets.filter(t => t.type === 'STAFF').length}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">VIP - Cortesía</span>
+                    <span className="font-black">{tickets.filter(t => t.type === 'vip').length}</span>
                   </div>
                 </div>
               </div>
@@ -338,7 +481,8 @@ export default function Dashboard({ forceTab }: DashboardProps) {
                activeTab === 'checkin' ? 'Control de Acceso' : 
                activeTab === 'agenda' ? 'Gestión de Programa' : 
                activeTab === 'tickets' ? 'Gestión de Boletos' : 
-               activeTab === 'sponsors' ? 'Patrocinadores' : 'Interactividad Q&A'}
+               activeTab === 'sponsors' ? 'Patrocinadores' : 
+               activeTab === 'config' ? 'Configuración del Sistema' : 'Interactividad Q&A'}
             </h1>
           </div>
           <p className="text-slate-400 font-medium">
@@ -359,6 +503,60 @@ export default function Dashboard({ forceTab }: DashboardProps) {
         >
           {renderContent()}
         </motion.div>
+      </AnimatePresence>
+
+      {/* ─── Premium Confirmation Modal ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {confirmModal.show && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden"
+            >
+              {/* Decorative accent */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-emerald-500" />
+              
+              <div className="flex flex-col items-center text-center gap-6">
+                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-inner">
+                  <ShieldAlert className="w-8 h-8 text-orange-500" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black uppercase tracking-tighter text-white">
+                    {confirmModal.title}
+                  </h3>
+                  <p className="text-slate-400 text-sm font-medium leading-relaxed">
+                    {confirmModal.message}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 w-full pt-2">
+                  <button
+                    onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                    className="py-4 rounded-2xl border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all font-black uppercase tracking-widest text-[10px]"
+                  >
+                    No, Cancelar
+                  </button>
+                  <button
+                    onClick={confirmModal.onConfirm}
+                    className="premium-button premium-gradient-orange text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                  >
+                    Sí, Guardar Cambios
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

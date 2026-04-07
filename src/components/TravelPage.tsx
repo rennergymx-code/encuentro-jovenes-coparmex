@@ -4,38 +4,42 @@ import { MapPin, Car, Hotel, ArrowLeft, ExternalLink, Phone } from 'lucide-react
 import { useNavigate } from 'react-router-dom';
 import SEO from './SEO';
 
-const HOTELS = [
+const DESTINATIONS = [
+  {
+    name: 'Eventos Partenón',
+    desc: 'Sede oficial del Encuentro de Jóvenes Coparmex. Un espacio de alto nivel diseñado para grandes eventos.',
+    link: 'https://maps.app.goo.gl/kSPnzJwCzk3XibCz8',
+    address: 'Blvd. Antonio Quiroga, Hermosillo',
+    phone: '662 216 0000',
+    image: '/assets/guia-viaje/partenon.jpg',
+    type: 'Sede del Evento'
+  },
   {
     name: 'Hotel Santorian',
-    desc: 'Estilo boutique y cercanía estratégica. Una de las mejores opciones modernas en la ciudad.',
-    link: 'https://hotelsantorian.mx/',
+    desc: 'Estilo boutique y cercanía estratégica al evento. Una de las mejores opciones modernas en la ciudad.',
+    link: 'https://maps.app.goo.gl/QNEKnpkcCPYkvrFK7',
     address: 'Hermosillo, Sonora',
     phone: '662 213 3131',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+    image: '/assets/guia-viaje/santorian.jpg',
+    type: 'Hospedaje Recomendado'
   },
   {
     name: 'Hotel San Angel',
     desc: 'Tradición y confort. Ideal para quienes buscan una estancia clásica con excelente servicio.',
-    link: 'https://hotelsanangel.com.mx/',
+    link: 'https://maps.app.goo.gl/Dzgj9GCaC4wYtiZi7',
     address: 'Blvd. García Morales, Hermosillo',
     phone: '662 259 8100',
-    image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+    image: '/assets/guia-viaje/san-angel.jpg',
+    type: 'Hospedaje Recomendado'
   },
   {
     name: 'Hotel Royal Palace',
     desc: 'Elegancia y prestigio en una ubicación privilegiada. Habitaciones de lujo y servicio de primer nivel.',
-    link: 'https://hotelroyalpalace.com.mx/',
+    link: 'https://maps.app.goo.gl/yCF9jkSU4BDtxRCX9',
     address: 'Blvd. García Morales 306, Hermosillo',
     phone: '662 236 3333',
-    image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    name: 'Hotel Marsella',
-    desc: 'Un clásico renovado en el corazón de la zona hotelera.',
-    link: 'https://hotelmarsella.com.mx/',
-    address: 'Fray Bernardino de Sahagún, Col. Centro',
-    phone: '662 213 1400',
-    image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+    image: '/assets/guia-viaje/royal-palace.jpg',
+    type: 'Hospedaje Recomendado'
   }
 ];
 
@@ -63,7 +67,7 @@ export default function TravelPage({ onBack }: { onBack: () => void }) {
         path="/guia-viaje"
       />
 
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <button 
           onClick={onBack}
           className="flex items-center gap-2 text-white/40 hover:text-branding-orange transition-colors mb-12 group"
@@ -86,46 +90,52 @@ export default function TravelPage({ onBack }: { onBack: () => void }) {
           </p>
         </motion.div>
 
-        {/* Hotels Grid */}
+        {/* Destinations Grid */}
         <div className="mb-24">
           <div className="flex items-center gap-4 mb-10">
-            <Hotel className="text-branding-orange w-6 h-6" />
-            <h2 className="text-2xl font-black uppercase tracking-widest">Hospedaje Recomendado</h2>
+            <MapPin className="text-branding-orange w-6 h-6" />
+            <h2 className="text-2xl font-black uppercase tracking-widest">Sede y Hospedaje</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {HOTELS.map((hotel, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
+            {DESTINATIONS.map((item, i) => (
               <motion.div
-                key={hotel.name}
+                key={item.name}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.1 }}
-                className="premium-card group overflow-hidden"
+                className="premium-card group overflow-hidden flex flex-col h-full"
               >
-                <div className="h-48 -mx-6 -mt-6 mb-6 overflow-hidden">
-                  <img src={hotel.image} alt={hotel.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" />
+                <div className="h-48 -mx-6 -mt-6 mb-6 overflow-hidden bg-white/5">
+                  <img 
+                    src={item.image} 
+                    alt={item.name} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" 
+                    onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'; }}
+                  />
                 </div>
-                <h3 className="text-xl font-black mb-3 uppercase">{hotel.name}</h3>
-                <p className="text-sm text-white/40 leading-relaxed mb-6 h-12 overflow-hidden">{hotel.desc}</p>
+                <div className="mb-1">
+                  <span className="text-[#FF5100]/60 text-[9px] font-black uppercase tracking-widest">{item.type}</span>
+                </div>
+                <h3 className="text-xl font-black mb-3 uppercase leading-tight">{item.name}</h3>
+                <p className="text-sm text-white/40 leading-relaxed mb-6 line-clamp-3">{item.desc}</p>
                 <div className="space-y-3 mb-8">
-                  <div className="flex items-center gap-2 text-[10px] text-white/20 font-bold uppercase tracking-widest">
-                    <MapPin className="w-3 h-3 text-branding-orange" />
-                    {hotel.address}
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] text-white/20 font-bold uppercase tracking-widest">
-                    <Phone className="w-3 h-3 text-branding-orange" />
-                    {hotel.phone}
+                  <div className="flex items-start gap-2 text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                    <MapPin className="w-3 h-3 text-branding-orange mt-0.5" />
+                    {item.address}
                   </div>
                 </div>
-                <a 
-                  href={hotel.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-4 glass-morphism rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-branding-orange transition-colors"
-                >
-                  Reservar Ahora
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="mt-auto">
+                  <a 
+                    href={item.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-4 glass-morphism rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-branding-orange transition-colors"
+                  >
+                    CONTACTO
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </motion.div>
             ))}
           </div>

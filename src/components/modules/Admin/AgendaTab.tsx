@@ -56,9 +56,27 @@ export default function AgendaTab({ sessions, onRefresh, onSessionsChange }: Age
     if (!trimmed) return;
     setEditing((prev: any) => ({
       ...prev,
-      speakers: [...(prev.speakers || []), { name: trimmed, title: '' }],
+      speakers: [...(prev.speakers || []), { name: trimmed, role: '', revealed: true, status: 'invited' }],
     }));
     setSpeakerInput('');
+  };
+
+  const toggleSpeakerStatus = (i: number) => {
+    setEditing((prev: any) => ({
+      ...prev,
+      speakers: prev.speakers.map((s: any, idx: number) => 
+        idx === i ? { ...s, status: s.status === 'confirmed' ? 'invited' : 'confirmed' } : s
+      ),
+    }));
+  };
+
+  const toggleSpeakerReveal = (i: number) => {
+    setEditing((prev: any) => ({
+      ...prev,
+      speakers: prev.speakers.map((s: any, idx: number) => 
+        idx === i ? { ...s, revealed: !s.revealed } : s
+      ),
+    }));
   };
 
   const removeSpeaker = (i: number) => {
@@ -122,7 +140,7 @@ export default function AgendaTab({ sessions, onRefresh, onSessionsChange }: Age
             Gestión de <span className="text-orange-500 text-glow-orange">Agenda</span>
           </h3>
           <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
-            {localSessions.length} sesiones en el programa — {localSessions.filter(s => !s.isMystery).length} visibles para el público
+            {localSessions.length} actividades en el programa — {localSessions.filter(s => s.speakers.some(sp => sp.status === 'invited')).length} con ponentes por confirmar
           </p>
         </div>
         <button
@@ -166,9 +184,9 @@ export default function AgendaTab({ sessions, onRefresh, onSessionsChange }: Age
                         Highlight
                       </span>
                     )}
-                    {!isRevealed && (
+                    {session.speakers.some((sp: any) => !sp.revealed) && (
                       <span className="text-[9px] font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" /> Oculta
+                        <Lock className="w-2.5 h-2.5" /> Ponentes Ocultos
                       </span>
                     )}
                   </div>
@@ -182,43 +200,40 @@ export default function AgendaTab({ sessions, onRefresh, onSessionsChange }: Age
                     </p>
                   )}
 
-                  <div className="flex flex-wrap gap-3 text-[10px] text-slate-400 font-bold">
-                    {session.time && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-600" /> {session.time}
-                      </span>
-                    )}
-                    {speakerNames && (
-                      <span className="flex items-center gap-1 text-slate-300">
-                        <Users className="w-3 h-3 text-slate-600" /> {speakerNames}
-                      </span>
-                    )}
-                  </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => toggleReveal(index)}
-                    className="p-2.5 bg-white/5 border border-white/5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 transition-all"
-                    title={isRevealed ? 'Ocultar del público' : 'Revelar al público'}
-                  >
-                    {isRevealed ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => openEdit(session, index)}
-                    className="p-2.5 bg-white/5 border border-white/5 rounded-xl text-slate-500 hover:text-orange-400 hover:bg-orange-500/10 hover:border-orange-500/20 transition-all"
-                    title="Editar sesión"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(index)}
-                    className="p-2.5 bg-red-500/5 border border-red-500/5 rounded-xl text-red-500/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                    title="Eliminar sesión"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+          
+                {/* Time Badge & Actions */}
+                <div className="flex flex-col items-end gap-3 flex-shrink-0">
+                  {session.time && (
+                    <div className="bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-xl flex items-center gap-2 group-hover:bg-orange-500 group-hover:text-white transition-all duration-300">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span className="text-xs font-black tracking-tighter">{session.time}</span>
+                    </div>
+                  )}
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleReveal(index)}
+                      className="p-2.5 bg-white/5 border border-white/5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 transition-all"
+                      title={isRevealed ? 'Ocultar ponentes' : 'Revelar ponentes'}
+                    >
+                      {isRevealed ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => openEdit(session, index)}
+                      className="p-2.5 bg-white/5 border border-white/5 rounded-xl text-slate-500 hover:text-orange-400 hover:bg-orange-500/10 hover:border-orange-500/20 transition-all"
+                      title="Editar sesión"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(index)}
+                      className="p-2.5 bg-red-500/5 border border-red-500/5 rounded-xl text-red-500/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                      title="Eliminar sesión"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -329,12 +344,31 @@ export default function AgendaTab({ sessions, onRefresh, onSessionsChange }: Age
             </div>
             <div className="flex flex-wrap gap-2">
               {editing.speakers?.map((s: any, i: number) => (
-                <span key={i} className="flex items-center gap-2 bg-slate-800 border border-white/10 rounded-full px-3 py-1.5 text-xs font-bold">
-                  {s.name}
-                  <button onClick={() => removeSpeaker(i)} className="text-slate-500 hover:text-red-400 transition-colors">
+                <div key={i} className={`flex items-center gap-2 border rounded-full px-3 py-1.5 transition-all ${
+                  s.revealed ? 'bg-slate-800 border-white/10' : 'bg-purple-500/10 border-purple-500/30 text-purple-400'
+                }`}>
+                  <button 
+                    onClick={() => toggleSpeakerReveal(i)} 
+                    className={`transition-colors ${s.revealed ? 'text-slate-500 hover:text-emerald-400' : 'text-purple-400 hover:text-purple-300'}`}
+                    title={s.revealed ? 'Ocultar ponente' : 'Revelar ponente'}
+                  >
+                    {s.revealed ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  </button>
+                  
+                  {/* Status Indicator Dot */}
+                  <button
+                    onClick={() => toggleSpeakerStatus(i)}
+                    className={`w-3 h-3 rounded-full transition-all shadow-[0_0_8px_rgba(0,0,0,0.5)] ${
+                      s.status === 'confirmed' ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-blue-500 shadow-blue-500/50'
+                    }`}
+                    title={s.status === 'confirmed' ? 'Confirmado (Click para marcar Por Confirmar)' : 'Por Confirmar (Click para marcar Confirmado)'}
+                  />
+
+                  <span className="text-xs font-bold">{s.name}</span>
+                  <button onClick={() => removeSpeaker(i)} className="text-slate-500 hover:text-red-400 border-l border-white/10 pl-2 transition-colors">
                     <X className="w-3 h-3" />
                   </button>
-                </span>
+                </div>
               ))}
             </div>
           </div>

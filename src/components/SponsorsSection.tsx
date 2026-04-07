@@ -1,34 +1,55 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Phone } from 'lucide-react';
-
-import { SPONSORS } from '../data/sponsors';
-
-const MARQUEE_ITEMS = [...SPONSORS, ...SPONSORS, ...SPONSORS];
-
-function SponsorLogo({ name, logo }: { name: string; logo: string }) {
-  return (
-    <div
-      className="flex items-center justify-center px-10 py-2 cursor-default select-none"
-      style={{ minWidth: '160px' }}
-    >
-      <img
-        src={logo}
-        alt={name}
-        className="h-10 max-w-[140px] object-contain transition-all duration-300 opacity-60 hover:opacity-100 grayscale brightness-200"
-      />
-    </div>
-  );
-}
+import { supabase } from '../services/supabaseClient';
+import { SPONSORS, type Sponsor } from '../data/sponsors';
 
 export default function SponsorsSection() {
+  const [sponsorsList, setSponsorsList] = useState<Sponsor[]>(SPONSORS);
+
+  useEffect(() => {
+    async function fetchSponsors() {
+      try {
+        const { data, error } = await supabase
+          .from('sponsors')
+          .select('*')
+          .order('tier', { ascending: false }); // Show heavy-hitters first
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          // Map DB snake_case to frontend camelCase
+          const mapped = data.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            logo: s.logo,
+            tier: s.tier,
+            contribution: s.contribution,
+            paymentStatus: s.paymentStatus || s.payment_status
+          }));
+          setSponsorsList(mapped);
+        }
+      } catch (err) {
+        console.error("Error fetching sponsors from Supabase:", err);
+      }
+    }
+
+    fetchSponsors();
+  }, []);
+
+  const sponsorsPrimary = sponsorsList.filter(s => s.tier === 'expansion' || s.tier === 'compa');
+  const sponsorsSecondary = sponsorsList.filter(s => s.tier === 'sonora');
+
+  const marqueePrimary = [...sponsorsPrimary, ...sponsorsPrimary, ...sponsorsPrimary];
+  const marqueeSecondary = [...sponsorsSecondary, ...sponsorsSecondary, ...sponsorsSecondary];
+
   return (
-    <section className="relative py-24 overflow-hidden">
+    <section className="relative py-32 overflow-hidden">
       {/* Background */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.4) 100%)',
+            'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.6) 100%)',
         }}
       />
 
@@ -43,7 +64,7 @@ export default function SponsorsSection() {
       />
 
       {/* Header */}
-      <div className="relative z-5 max-w-4xl mx-auto px-6 text-center mb-16">
+      <div className="relative z-5 max-w-4xl mx-auto px-6 text-center mb-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -52,7 +73,7 @@ export default function SponsorsSection() {
           <p className="text-[#FF5100] text-[10px] font-black tracking-[0.5em] uppercase mb-4">
             Este evento es posible gracias a
           </p>
-          <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-white">
+          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
             Nuestros <span className="text-branding-orange">Patrocinadores</span>
           </h2>
           <p className="text-white/30 text-sm mt-4 uppercase tracking-widest font-bold">
@@ -61,23 +82,74 @@ export default function SponsorsSection() {
         </motion.div>
       </div>
 
-      {/* Marquee */}
-      <div className="relative border-y border-white/5 py-4">
-        <div
-          className="flex items-center"
-          style={{
-            width: 'max-content',
-            animation: 'sponsorMarquee 35s linear infinite',
-          }}
-        >
-          {MARQUEE_ITEMS.map((s, i) => (
-            <SponsorLogo
-              key={`sponsor-item-${s.name}-${i}`}
-              name={s.name}
-              logo={s.logo}
-            />
-          ))}
-        </div>
+      <div className="space-y-20">
+        {/* Tier A: EXPANSIÓN & COMPA (EXTRA LARGE) */}
+        {sponsorsPrimary.length > 0 && (
+          <div className="relative border-y border-white/5 py-12 bg-white/[0.01]">
+            {/* Label */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#06000c] px-6 z-20">
+              <span className="text-[#FF5100] text-[10px] font-black tracking-[0.4em] uppercase whitespace-nowrap">
+                PATROCINADORES EXPANSIÓN
+              </span>
+            </div>
+            
+            <div
+              className="flex items-center"
+              style={{
+                width: 'max-content',
+                animation: 'sponsorMarquee 40s linear infinite',
+              }}
+            >
+              {marqueePrimary.map((s, i) => (
+                <div
+                  key={`primary-${s.name}-${i}`}
+                  className="flex items-center justify-center px-16 py-4 cursor-default select-none"
+                  style={{ minWidth: '280px' }}
+                >
+                  <img
+                    src={s.logo}
+                    alt={s.name}
+                    className="h-20 md:h-28 max-w-[240px] object-contain transition-all duration-300 opacity-100 hover:scale-105"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tier B: SONORA (LARGE) */}
+        {sponsorsSecondary.length > 0 && (
+          <div className="relative border-y border-white/5 py-10 mt-8">
+            {/* Label */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#06000c] px-6 z-20">
+              <span className="text-[#FF5100] text-[10px] font-black tracking-[0.4em] uppercase whitespace-nowrap">
+                PATROCINADORES SONORA
+              </span>
+            </div>
+
+            <div
+              className="flex items-center"
+              style={{
+                width: 'max-content',
+                animation: 'sponsorMarquee 30s linear infinite reverse',
+              }}
+            >
+              {marqueeSecondary.map((s, i) => (
+                <div
+                  key={`secondary-${s.name}-${i}`}
+                  className="flex items-center justify-center px-12 py-2 cursor-default select-none"
+                  style={{ minWidth: '200px' }}
+                >
+                  <img
+                    src={s.logo}
+                    alt={s.name}
+                    className="h-12 md:h-16 max-w-[180px] object-contain transition-all duration-300 opacity-100 hover:scale-105"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <motion.p

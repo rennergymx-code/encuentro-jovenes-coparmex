@@ -38,7 +38,14 @@ const TIER_CONFIG: Record<SponsorTier, { label: string; price: string; perks: st
   },
 };
 
-const EMPTY_SPONSOR: Sponsor = { name: '', logo: '', tier: 'compa', contribution: '' };
+const EMPTY_SPONSOR: Sponsor = { 
+  id: undefined,
+  name: '', 
+  logo: '', 
+  tier: 'compa', 
+  contribution: '',
+  paymentStatus: 'sin_pago'
+};
 
 export default function SponsorsTab({ sponsors, onRefresh, onSponsorsChange }: SponsorsTabProps) {
   const [localSponsors, setLocalSponsors] = useState<Sponsor[]>(sponsors);
@@ -88,10 +95,12 @@ export default function SponsorsTab({ sponsors, onRefresh, onSponsorsChange }: S
     try {
       let updated: Sponsor[];
       const cleanSponsor: Sponsor = {
+        id: editingSponsor.id,
         name: editingSponsor.name,
         logo: editingSponsor.logo || logoPreview,
         tier: editingSponsor.tier,
         contribution: editingSponsor.contribution,
+        paymentStatus: editingSponsor.paymentStatus,
       };
 
       if (editingSponsor._index !== undefined) {
@@ -143,7 +152,7 @@ export default function SponsorsTab({ sponsors, onRefresh, onSponsorsChange }: S
     const updated = localSponsors.map((s, i) => {
       if (i !== index) return s;
       const next = s.paymentStatus === 'pagado' ? 'sin_pago' : 'pagado';
-      return { ...s, paymentStatus: next } as typeof s;
+      return { ...s, paymentStatus: next };
     });
     setLocalSponsors(updated);
     onSponsorsChange?.(updated);
