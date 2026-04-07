@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ShoppingCart, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { Menu, X, ShoppingCart, ArrowRight, LayoutDashboard, Home, Info, Users, Star, Megaphone } from 'lucide-react';
+import SahuaroIcon from './components/icons/SahuaroIcon';
 import { AppArea } from './types';
 import { Toaster } from 'sonner';
 import { supabase } from './services/supabaseClient';
@@ -207,14 +208,6 @@ export default function App() {
               >
                 Adquirir Carnet
               </button>
-
-              <button 
-                onClick={() => navigate('/checkout')} 
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/40 hover:text-white"
-                title="Checkout"
-              >
-                <ShoppingCart className="w-4 h-4" />
-              </button>
             </div>
 
             {/* Mobile Menu Button */}
@@ -238,63 +231,72 @@ export default function App() {
           <AnimatePresence>
             {isMobileMenuOpen && (
               <motion.div 
-                initial={{ opacity: 0, x: '100%' }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed inset-0 z-50 bg-[#0b0c14] pt-24 px-8 overflow-y-auto"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-[#0b0c14]/95 backdrop-blur-2xl px-6 pt-28 pb-12 overflow-y-auto"
               >
-                <div className="flex flex-col gap-6 pb-12">
+                {/* Background decorative elements */}
+                <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[40%] bg-branding-orange/10 rounded-full blur-[120px] pointer-events-none" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[40%] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+                <div className="flex flex-col gap-3 max-w-sm mx-auto relative z-10">
                   <button 
                     onClick={() => { navigate('/'); window.scrollTo(0,0); setIsMobileMenuOpen(false); }}
-                    className="text-4xl font-black uppercase text-left group"
+                    className="flex items-center gap-4 p-5 rounded-3xl bg-white/5 border border-white/5 text-left group transition-all active:scale-95"
                   >
-                    <span className="group-hover:text-branding-orange transition-colors italic">Inicio</span>
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-branding-orange/20 transition-colors">
+                      <Home className="w-6 h-6 text-white/40 group-hover:text-branding-orange" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Volver al inicio</p>
+                      <p className="text-xl font-black text-white uppercase tracking-tighter italic">Inicio</p>
+                    </div>
                   </button>
 
-                  <div className="h-px w-full bg-white/5 my-2" />
-
-                  {[
-                    { label: 'Sobre el Encuentro', id: 'sobre-el-encuentro' },
-                    { label: 'El Lineup', id: 'lineup' },
-                    { label: 'Las calles ya hablan', id: 'buzz' },
-                    { label: 'Proyecto Sorpresa', id: 'surprise' },
-                    { label: 'Patrocinadores', id: 'sponsors' },
-                  ].map((item) => (
-                    <button 
-                      key={item.id}
-                      onClick={() => scrollToHash(item.id)}
-                      className="text-xl font-bold uppercase text-left text-white/50 hover:text-white transition-colors"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-
-                  <div className="h-px w-full bg-white/5 my-2" />
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {[
+                      { label: 'Encuentro', id: 'sobre-el-encuentro', icon: Info },
+                      { label: 'Lineup', id: 'lineup', icon: Users },
+                      { label: 'Ya se está hablando', id: 'buzz', icon: Megaphone },
+                      { label: 'Sponsors', id: 'sponsors', icon: Star },
+                    ].map((item) => (
+                      <button 
+                        key={item.id}
+                        onClick={() => scrollToHash(item.id)}
+                        className="flex flex-col gap-4 p-5 rounded-3xl bg-white/5 border border-white/5 text-left group transition-all active:scale-95"
+                      >
+                         <item.icon className="w-5 h-5 text-branding-orange/40 group-hover:text-branding-orange" />
+                         <p className="text-[10px] font-black text-white/50 group-hover:text-white uppercase leading-tight tracking-wider">
+                           {item.label}
+                         </p>
+                      </button>
+                    ))}
+                  </div>
 
                   <button 
                     onClick={() => { navigate('/checkout'); setIsMobileMenuOpen(false); }}
-                    className="text-3xl font-black uppercase text-left group flex items-center gap-4 text-branding-orange"
+                    className="flex items-center justify-between p-6 mt-4 rounded-3xl premium-gradient-orange text-white shadow-xl shadow-orange-500/20 active:scale-95 transition-all"
                   >
-                    Adquirir Carnet
+                    <div className="flex flex-col">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5">Reserva tu lugar</p>
+                      <p className="text-2xl font-black uppercase tracking-tighter">Adquirir Carnet</p>
+                    </div>
                     <ArrowRight className="w-8 h-8" />
                   </button>
 
-                  <button 
-                    onClick={() => { navigate('/mis-tickets'); setIsMobileMenuOpen(false); }}
-                    className="text-xl font-bold uppercase text-left text-white/40 mt-4"
-                  >
-                    Mis Tickets
-                  </button>
-                  
-                  {isAdmin && (
-                    <button 
-                      onClick={() => { navigate('/dashboard'); setActiveArea('admin'); setIsMobileMenuOpen(false); }}
-                      className="text-xl font-bold uppercase text-left text-white/40"
-                    >
-                      Panel de Gestión
-                    </button>
-                  )}
+                  <div className="flex items-center justify-center mt-6">
+                    {isAdmin && (
+                      <button 
+                        onClick={() => { navigate('/dashboard'); setActiveArea('admin'); setIsMobileMenuOpen(false); }}
+                        className="w-full flex items-center gap-4 p-5 rounded-3xl bg-white/5 border border-white/5 transition-all active:scale-95 group justify-center"
+                        title="Gestión"
+                      >
+                        <SahuaroIcon className="w-8 h-8 opacity-40 group-hover:opacity-100 transition-opacity" color="#FF5100" />
+                        <span className="text-xs font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-white">Panel de Gestión</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}

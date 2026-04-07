@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 const BUZZ_ITEMS = [
   {
     platform: 'X / Twitter',
-    user: '@JovenSonorense',
+    user: '',
     avatar: 'JS',
     color: '#1d9bf0',
     time: 'hace 2 horas',
@@ -12,23 +12,23 @@ const BUZZ_ITEMS = [
   },
   {
     platform: 'Instagram',
-    user: '@empresario.mx',
+    user: '',
     avatar: 'EM',
     color: '#e1306c',
     time: 'hace 5 horas',
     text: 'Me llegó un chisme de que el Encuentro Jóvenes en Hermosillo tiene un "proyecto sorpresa" que va a dejar loca a la ciudad. Solo los que compren su carnet lo sabrán 🤐',
   },
   {
-    platform: 'WhatsApp Business',
-    user: 'Grupo: Empresarios Sonorenses',
-    avatar: 'ES',
-    color: '#25d366',
+    platform: 'Facebook',
+    user: '',
+    avatar: 'F',
+    color: '#0866ff',
     time: 'hace 1 hora',
     text: 'Oigan, ¿ya vieron lo del Encuentro Jóvenes el 12 de mayo? Me dijeron que está confirmado algo que nunca había pasado en Hermosillo. No me dieron más información 🔒',
   },
   {
     platform: 'X / Twitter',
-    user: '@sonoraempresarial',
+    user: '',
     avatar: 'SE',
     color: '#1d9bf0',
     time: 'hace 30 min',

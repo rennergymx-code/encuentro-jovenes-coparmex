@@ -157,7 +157,7 @@ export const PROGRAM: Session[] = [
     tagline: '¿Y si la música fuera el activo económico más poderoso de Sonora?',
     value: 'Sonora suena fuerte. Analizamos el poder económico detrás de nuestras notas musicales y culturales.',
     speakers: [
-      { id: 'fernando', name: 'Fernando García de León', role: 'Empresario industria musical y compositor A', revealed: true, isModerator: true },
+      { id: 'fernando', name: 'Fernando García de León', role: 'Empresario industria musical y compositor', revealed: true, isModerator: true },
       { id: 'carin', name: 'Carin León', role: 'Artista sorpresa', revealed: false },
       { id: 'yahir', name: 'Yahir', role: 'Artista sorpresa', revealed: false },
       { id: 'kakalo', name: 'Kakalo', role: 'Artista sorpresa', revealed: false },

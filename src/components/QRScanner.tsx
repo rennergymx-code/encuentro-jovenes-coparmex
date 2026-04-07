@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { supabase } from '../services/supabaseClient';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,7 +16,11 @@ import {
   Users,
   Clock,
   LayoutDashboard,
-  Power
+  Power,
+  ShieldCheck,
+  RefreshCw,
+  CameraOff,
+  QrCode
 } from 'lucide-react';
 
 export default function QRScanner() {
@@ -25,125 +29,161 @@ export default function QRScanner() {
   const [loading, setLoading] = useState(false);
   const [manualSearch, setManualSearch] = useState('');
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  const [isScanning, setIsScanning] = useState(!isDesktop);
+  const [isScanning, setIsScanning] = useState(false); 
   const [recentFeed, setRecentFeed] = useState<any[]>([]);
   const [stats, setStats] = useState({ total: 0, entered: 0 });
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
   
-  // Audio Feedback Utilities
-  const playSound = (type: 'success' | 'error') => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
+  const html5QrCode = useRef<Html5Qrcode | null>(null);
+  const audioContext = useRef<AudioContext | null>(null);
+  const scanPaused = useRef(false);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-
-      if (type === 'success') {
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-      } else {
-        oscillator.type = 'sawtooth';
-        oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.2);
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-      }
-
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.2);
-    } catch (e) {
-      console.warn("Audio disabled or failed", e);
+  const initAudio = () => {
+    if (!audioContext.current) {
+        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioContext.current.state === 'suspended') {
+        audioContext.current.resume();
     }
   };
 
-  // Device detection
+  const playSound = (type: 'success' | 'error') => {
+    if (!audioContext.current) return;
+    
+    const oscillator = audioContext.current.createOscillator();
+    const gainNode = audioContext.current.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.current.destination);
+
+    if (type === 'success') {
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioContext.current.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.current.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.1, audioContext.current.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.current.currentTime + 0.1);
+    } else {
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(220, audioContext.current.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(110, audioContext.current.currentTime + 0.2);
+      gainNode.gain.setValueAtTime(0.1, audioContext.current.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.current.currentTime + 0.2);
+    }
+
+    oscillator.start();
+    oscillator.stop(audioContext.current.currentTime + 0.2);
+  };
+
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
     window.addEventListener('resize', handleResize);
     fetchStats();
     fetchRecentCheckins();
 
-    // REAL-TIME FEED SUBSCRIPTION
     const channel = supabase
       .channel('ticket-updates')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'tickets' },
         (payload) => {
+          console.log("Realtime update received:", payload);
           const newTicket = payload.new;
-          const oldTicket = payload.old;
-          
-          // Only trigger if status changed to scanned
-          if (newTicket.status === 'scanned' && oldTicket.status !== 'scanned') {
-            handleSystemCheckin(newTicket);
+          if (newTicket.status === 'scanned') {
+            fetchStats();
+            setRecentFeed(prev => {
+                if (prev.find(t => t.id === newTicket.id)) return prev;
+                return [newTicket, ...prev].slice(0, 15);
+            });
+            // MONITOR EN VIVO: Si estamos en escritorio, mostramos el escaneo inmediatamente
+            if (window.innerWidth >= 1024) {
+                setScannedData(newTicket);
+                playSound('success');
+            }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Realtime connection status:", status);
+        if (status === 'SUBSCRIBED') {
+            console.log("Successfully subscribed to public:tickets updates");
+        }
+        if (status === 'CHANNEL_ERROR') {
+            console.error("Error connecting to Realtime channel. Check RLS or Publication.");
+        }
+      });
 
     return () => {
       window.removeEventListener('resize', handleResize);
       supabase.removeChannel(channel);
+      stopScanner();
     };
   }, []);
 
-  // Handle a check-in coming from any device (real-time or local scan)
-  const handleSystemCheckin = (ticket: any) => {
-    setScannedData(ticket);
-    playSound('success');
-    setRecentFeed(prev => [ticket, ...prev].slice(0, 15));
-    fetchStats();
-  };
-
-  const fetchStats = async () => {
-    const { data: tickets } = await supabase.from('tickets').select('status');
-    if (tickets) {
-      setStats({
-        total: tickets.length,
-        entered: tickets.filter(t => t.status === 'scanned').length
-      });
-    }
-  };
-
-  const fetchRecentCheckins = async () => {
-    const { data } = await supabase
-      .from('tickets')
-      .select('*')
-      .eq('status', 'scanned')
-      .order('scanned_at', { ascending: false })
-      .limit(15);
+  const startScanner = async () => {
+    initAudio();
+    setIsScanning(true);
+    setScannedData(null);
+    setError(null);
+    scanPaused.current = false;
+    localStorage.setItem('qr_scanner_remembered', 'true');
     
-    if (data) setRecentFeed(data);
+    // Use a small delay to ensure #reader is painted
+    setTimeout(async () => {
+        try {
+            const readerElement = document.getElementById("reader");
+            if (!readerElement) {
+                console.error("Reader element not found");
+                return;
+            }
+
+            if (!html5QrCode.current) {
+                html5QrCode.current = new Html5Qrcode("reader");
+            }
+            
+            await html5QrCode.current.start(
+                { facingMode: "environment" }, 
+                { fps: 15, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                () => {}
+            );
+            setCameraReady(true);
+        } catch (err) {
+            console.error("Error starting scanner:", err);
+            toast.error("Error al iniciar cámara. Verifica los permisos.");
+            setIsScanning(false);
+        }
+    }, 300);
   };
 
-  // Scanner Logic (Mobile/Manual)
-  useEffect(() => {
-    if (!isDesktop && isScanning) {
-      scannerRef.current = new Html5QrcodeScanner(
-        "reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        /* verbose= */ false
-      );
-      scannerRef.current.render(onScanSuccess, onScanFailure);
-    }
+  const resumeScanner = async () => {
+    setScannedData(null);
+    setError(null);
+    // Añadimos un pequeño delay de seguridad para que el usuario retire el celular del QR anterior
+    setTimeout(() => {
+        scanPaused.current = false;
+    }, 800);
+  };
 
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => console.error(e));
-        scannerRef.current = null;
+  const stopScanner = async () => {
+    if (html5QrCode.current && html5QrCode.current.isScanning) {
+      try {
+        await html5QrCode.current.stop();
+        setCameraReady(false);
+        setIsScanning(false);
+      } catch (err) {
+        console.error("Error stopping scanner:", err);
       }
-    };
-  }, [isDesktop, isScanning]);
+    }
+  };
 
   async function onScanSuccess(decodedText: string) {
-    if (loading) return;
+    if (scanPaused.current) return;
+    
+    // Pause logical processing immediately to prevent duplicate scans
+    scanPaused.current = true;
     
     setLoading(true);
+    
     try {
       const { data, error: fetchError } = await supabase
         .from('tickets')
@@ -154,10 +194,10 @@ export default function QRScanner() {
       if (fetchError || !data) {
         playSound('error');
         setError("Boleto no encontrado");
-        toast.error("Boleto no encontrado");
+        setScannedData({ attendee_name: 'Desconocido', id: '???' });
       } else if (data.status === 'scanned') {
         playSound('error');
-        setError(`Ya ingresó: ${new Date(data.scanned_at).toLocaleString()}`);
+        setError(`Ya ingresó: ${new Date(data.scanned_at).toLocaleTimeString()}`);
         setScannedData(data);
       } else {
         const { error: updateError } = await supabase
@@ -166,18 +206,21 @@ export default function QRScanner() {
           .eq('id', data.id);
 
         if (updateError) throw updateError;
-        // The handleSystemCheckin will be triggered by Realtime subscription anyway, 
-        // but we can update local state immediately for faster UI feedback
+        
+        playSound('success');
+        setScannedData(data);
         toast.success(`Acceso: ${data.attendee_name}`);
       }
     } catch (err) {
       toast.error("Error de conexión");
+      // If error, auto-resume after a small delay
+      setTimeout(() => {
+        resumeScanner();
+      }, 2000);
     } finally {
       setLoading(false);
     }
   }
-
-  function onScanFailure(error: any) {}
 
   const handleManualSearch = async () => {
     if (!manualSearch) return;
@@ -198,14 +241,31 @@ export default function QRScanner() {
     }
   };
 
-  const reset = () => {
-    setScannedData(null);
-    setError(null);
+  const fetchStats = async () => {
+    // Usamos count() para obtener totales reales
+    const { count: total } = await supabase.from('tickets').select('*', { count: 'exact', head: true });
+    const { count: scanned } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'scanned');
+    
+    setStats({
+      total: total || 0,
+      entered: scanned || 0
+    });
+  };
+
+  const fetchRecentCheckins = async () => {
+    const { data } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('status', 'scanned')
+      .order('scanned_at', { ascending: false })
+      .limit(15);
+    
+    if (data) setRecentFeed(data);
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 py-8">
-      {/* Header section adaptativo */}
+    <div className="max-w-[1600px] mx-auto px-6 py-8 min-h-[80vh]">
+      {/* Header section */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-8">
         <div>
           <div className="flex items-center gap-4 mb-2">
@@ -214,7 +274,7 @@ export default function QRScanner() {
             </div>
             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-500">Operación Check-in</h4>
           </div>
-          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter">
+          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
             {isDesktop ? 'Centro de' : 'Escaner de'} <span className="text-[#FF5100] text-glow-orange">Acceso</span>
           </h2>
         </div>
@@ -237,11 +297,9 @@ export default function QRScanner() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Lógica Principal Adaptativa */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-8 h-full">
           {isDesktop ? (
-            /* MONITOR VIEW (Desktop) */
-            <div className="h-full min-h-[600px]">
+             <div className="h-full min-h-[500px]">
               <AnimatePresence mode="wait">
                 {scannedData ? (
                   <motion.div 
@@ -264,11 +322,11 @@ export default function QRScanner() {
                           {error ? 'Validación Fallida' : 'Validación Exitosa'}
                         </div>
                         <span className="text-xs font-bold text-slate-500 italic">
-                          Justo ahora • {new Date().toLocaleTimeString()}
+                          {new Date().toLocaleTimeString()}
                         </span>
                       </div>
 
-                      <h3 className="text-7xl font-black uppercase tracking-tighter mb-4 text-white">
+                      <h3 className="text-6xl md:text-7xl font-black uppercase tracking-tighter mb-4 text-white">
                         {scannedData.attendee_name}
                       </h3>
                       <p className={`text-xl font-black uppercase tracking-widest ${error ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -288,8 +346,8 @@ export default function QRScanner() {
                     </div>
 
                     <div className="mt-12 flex items-center gap-4 text-slate-500 font-bold uppercase text-xs tracking-widest">
-                      <Clock className="w-4 h-4" />
-                      Esperando siguiente validación en tiempo real...
+                       <RefreshCw className="w-4 h-4 animate-spin-slow" />
+                       Esperando siguiente validación...
                     </div>
                   </motion.div>
                 ) : (
@@ -308,113 +366,189 @@ export default function QRScanner() {
               </AnimatePresence>
             </div>
           ) : (
-            /* SCANNER VIEW (Mobile) */
-            <div className="space-y-8">
-              <div className="premium-card p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Cámara de Escaneo</h4>
-                  <button 
-                    onClick={() => setIsScanning(!isScanning)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black transition-all ${
-                      isScanning ? 'bg-orange-600 text-white' : 'bg-white/10 text-white/40'
-                    }`}
-                  >
-                    <Power className="w-3 h-3" />
-                    {isScanning ? 'APAGAR CÁMARA' : 'ENCENDER CÁMARA'}
-                  </button>
-                </div>
-                
-                {isScanning ? (
-                  <div id="reader" className="rounded-2xl overflow-hidden border border-white/10 bg-black min-h-[300px]"></div>
-                ) : (
-                  <div className="bg-slate-900/50 rounded-2xl h-[300px] flex flex-col items-center justify-center border border-dashed border-white/10 text-slate-600">
-                    <Camera className="w-12 h-12 mb-4" />
-                    <p className="font-black text-[10px] uppercase tracking-widest">Scanner Apagado</p>
-                  </div>
+            <div className="space-y-6">
+              {/* MOBILE SCANNING VIEW (Reader container is PERSISTENT here) */}
+              <div 
+                  className={`space-y-4 ${scannedData ? 'hidden pointer-events-none' : 'block'}`}
+                  style={{ display: !isScanning ? 'none' : (scannedData ? 'none' : 'block') }}
+              >
+                {!scannedData && isScanning && (
+                  <>
+                    <div className="premium-card p-4 overflow-hidden relative min-h-[380px]">
+                        <div 
+                            id="reader" 
+                            className={`rounded-3xl overflow-hidden bg-black aspect-square max-w-md mx-auto relative border-2 border-white/10 ${!cameraReady ? 'opacity-0' : 'opacity-100'}`}
+                            style={{ minHeight: '300px' }}
+                        />
+                        
+                        {!cameraReady && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                                <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
+                                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Iniciando Cámara...</p>
+                            </div>
+                        )}
+                        
+                        {cameraReady && (
+                            /* Scanning Overlay */
+                            <div className="absolute inset-0 z-10 pointer-events-none p-8 flex items-center justify-center">
+                                <div className="w-full aspect-square max-w-[250px] border-2 border-orange-500/50 rounded-2xl relative">
+                                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-orange-500 rounded-tl-lg" />
+                                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-orange-500 rounded-tr-lg" />
+                                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-orange-500 rounded-bl-lg" />
+                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-orange-500 rounded-br-lg" />
+                                    
+                                    <motion.div 
+                                        animate={{ top: ['5%', '95%', '5%'] }} 
+                                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                        className="absolute left-0 right-0 h-1 bg-orange-500/50 shadow-[0_0_20px_rgba(255,81,0,1)]"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                        
+                    <div className="flex flex-col gap-4 px-4">
+                        <p className="text-center text-[10px] font-black text-white/40 uppercase tracking-[0.3em] animate-pulse">
+                            Encuadra el código QR
+                        </p>
+                        <button 
+                            onClick={stopScanner}
+                            className="w-full bg-white/5 hover:bg-white/10 text-white/60 py-5 rounded-2xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all active:bg-white/10"
+                        >
+                            <CameraOff className="w-4 h-4" /> Finalizar Operación
+                        </button>
+                    </div>
+                  </>
                 )}
               </div>
 
-              <div className="premium-card">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6">Búsqueda Manual</h4>
-                <div className="flex gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                    <input 
-                      type="text" 
-                      value={manualSearch}
-                      onChange={(e) => setManualSearch(e.target.value)}
-                      placeholder="ID del boleto..."
-                      className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 pl-12 pr-4 focus:border-orange-500 outline-none transition-all font-medium text-sm"
-                    />
-                  </div>
-                  <button 
-                    onClick={handleManualSearch}
-                    className="premium-button premium-gradient-orange text-white px-6"
+              <AnimatePresence mode="wait">
+                {scannedData ? (
+                  <motion.div 
+                    key="result"
+                    initial={{ opacity: 0, scale: 1.1 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className={`p-10 rounded-[40px] border-2 flex flex-col items-center text-center shadow-2xl relative z-50 ${
+                        error ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'
+                    }`}
                   >
-                    Buscar
-                  </button>
-                </div>
-              </div>
-
-              {scannedData && (
-                 <motion.div 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-6 rounded-3xl border ${error ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}
-                 >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-xl ${error ? 'bg-red-500' : 'bg-emerald-500'}`}>
-                           {error ? <AlertCircle className="w-5 h-5 text-white" /> : <CheckCircle2 className="w-5 h-5 text-white" />}
-                        </div>
-                        <div>
-                          <p className="text-white font-black uppercase text-sm leading-tight">{scannedData.attendee_name}</p>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase">{error || 'Acceso Permitido'}</p>
-                        </div>
-                      </div>
-                      <button onClick={reset} className="text-slate-600"><X /></button>
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-xl ${
+                        error ? 'bg-red-500' : 'bg-emerald-500'
+                    }`}>
+                        {error ? <AlertCircle className="w-12 h-12 text-white" /> : <CheckCircle2 className="w-12 h-12 text-white" />}
                     </div>
-                 </motion.div>
-              )}
+                    
+                    <h3 className="text-4xl font-black uppercase tracking-tight text-white mb-2 leading-none">
+                        {scannedData.attendee_name}
+                    </h3>
+                    <div className={`text-sm font-black uppercase tracking-widest mb-10 ${error ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {error || (
+                            <div className="space-y-1">
+                                <span className="block opacity-50 text-[10px]">Carnet {scannedData.type}</span>
+                                <span className="text-lg">¡BIENVENIDO(A)!</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <button 
+                        onClick={stopScanner}
+                        className="w-full premium-button premium-gradient-orange text-white py-6 rounded-[24px] font-black uppercase tracking-widest flex items-center justify-center gap-3 text-lg active:scale-95 transition-all shadow-xl"
+                    >
+                        <QrCode className="w-6 h-6" />
+                        {error ? 'Volver a Intentar' : 'Finalizar y Nuevo Escaneo'}
+                    </button>
+                  </motion.div>
+                ) : !isScanning ? (
+                  <motion.div 
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="space-y-6"
+                  >
+                    <div className="text-center px-4 mb-2">
+                        <p className="text-slate-500 text-xs font-medium italic">Acceso de Personal Autorizado</p>
+                    </div>
+
+                    <button 
+                        onClick={startScanner}
+                        className="w-full aspect-square max-w-[320px] mx-auto glass-morphism border-2 border-dashed border-white/10 rounded-[64px] flex flex-col items-center justify-center gap-6 group hover:border-orange-500/50 hover:bg-orange-500/5 transition-all active:scale-95"
+                    >
+                        <div className="w-28 h-28 bg-orange-500/10 rounded-[36px] flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-orange-500/20 shadow-2xl">
+                            <Camera className="w-12 h-12 text-orange-500" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-2xl font-black text-white uppercase tracking-tighter">Iniciar Cámara</p>
+                            <p className="text-[10px] font-bold text-orange-500/60 uppercase tracking-widest mt-1">Check-in via QR</p>
+                        </div>
+                    </button>
+
+                    <div className="premium-card p-8 group">
+                        <div className="flex items-center gap-3 mb-6">
+                            <Search className="w-4 h-4 text-orange-500" />
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Búsqueda Manual</h4>
+                        </div>
+                        <div className="flex gap-3">
+                            <input 
+                                type="text" 
+                                value={manualSearch}
+                                onChange={(e) => setManualSearch(e.target.value)}
+                                placeholder="ID de boleto..."
+                                className="flex-1 bg-slate-900/50 border border-white/5 rounded-2xl py-5 px-6 focus:border-orange-500 outline-none transition-all font-bold text-white placeholder:text-slate-700"
+                            />
+                            <button 
+                                onClick={handleManualSearch}
+                                className="premium-button premium-gradient-orange text-white px-8 rounded-2xl active:scale-90"
+                            >
+                                <Search className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </div>
           )}
         </div>
 
-        {/* FEED LATERAL (Común) */}
-        <div className="lg:col-span-4 h-full">
-          <div className="h-full flex flex-col premium-card !p-0 overflow-hidden">
+        {/* FEED LATERAL */}
+        <div className="lg:col-span-4 h-full min-h-[400px]">
+          <div className="h-full flex flex-col premium-card !p-0 overflow-hidden border border-white/5 bg-black/20">
             <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Feed en Vivo</h4>
-               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Bitácora de Ingresos</h4>
+               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20"></span>
             </div>
             
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 max-h-[700px] custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 max-h-[600px] custom-scrollbar">
               <AnimatePresence initial={false}>
                 {recentFeed.length === 0 ? (
-                  <div className="text-center py-20 opacity-20">
-                     <Clock className="w-12 h-12 mx-auto mb-4" />
-                     <p className="text-[10px] font-black uppercase tracking-widest">Sin actividad hoy</p>
+                  <div className="text-center py-20 opacity-10">
+                     <Clock className="w-16 h-16 mx-auto mb-4" />
+                     <p className="text-[10px] font-black uppercase tracking-widest text-white">Sincronizando...</p>
                   </div>
                 ) : (
-                  recentFeed.map((ticket) => (
+                  recentFeed.map((ticket, i) => (
                     <motion.div
-                      key={`${ticket.id}-${ticket.scanned_at}`}
+                      key={`${ticket.id}-${i}`}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-4 group hover:bg-white/[0.06] transition-all"
+                      className="p-5 rounded-3xl bg-white/[0.03] border border-white/5 flex items-center gap-4 group hover:bg-white/[0.06] transition-all"
                     >
-                      <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center shrink-0">
-                         <User className="w-5 h-5 text-emerald-500" />
+                      <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-emerald-500/20">
+                         <User className="w-6 h-6 text-emerald-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                         <p className="text-sm font-black text-white truncate uppercase">{ticket.attendee_name}</p>
-                         <p className="text-[10px] font-bold text-slate-500 uppercase">{ticket.type}</p>
+                         <p className="text-base font-black text-white truncate uppercase tracking-tight">{ticket.attendee_name}</p>
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{ticket.type}</p>
                       </div>
                       <div className="text-right">
-                         <p className="text-[10px] font-medium text-slate-600 mb-0.5">
-                           {new Date(ticket.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                         <p className="text-[10px] font-bold text-slate-400 mb-0.5">
+                           {ticket.scanned_at ? new Date(ticket.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                          </p>
-                         <p className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">OK</p>
+                         <div className="flex items-center justify-end gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">ENTRÓ</p>
+                         </div>
                       </div>
                     </motion.div>
                   ))
@@ -422,38 +556,17 @@ export default function QRScanner() {
               </AnimatePresence>
             </div>
             
-            <div className="p-6 bg-white/[0.02] border-t border-white/5">
+            <div className="p-8 bg-white/[0.01] border-t border-white/5">
               <button 
                 onClick={fetchRecentCheckins}
-                className="w-full text-center text-[10px] font-black text-slate-600 uppercase tracking-widest hover:text-white transition-colors"
+                className="w-full text-center text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] hover:text-white transition-colors flex items-center justify-center gap-2"
               >
-                Actualizar Lista
+                <RefreshCw className="w-3 h-3" /> Actualizar Datos
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function ShieldCheck({ className, ...props }: any) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-      {...props}
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
   );
 }
