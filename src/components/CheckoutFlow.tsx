@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
+import OpenPayForm from './Checkout/OpenPayForm';
+import { openPayService } from '../services/openpayService';
 
 interface CheckoutFlowProps {
   onComplete: () => void;
@@ -57,6 +59,7 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
   const [quantity, setQuantity] = useState(1);
   const [attendees, setAttendees] = useState<Attendee[]>([{ name: '', email: '', phone: '' }]);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'transfer'>('card');
+  const [showOpenPayForm, setShowOpenPayForm] = useState(false);
   const [showBillingForm, setShowBillingForm] = useState(false);
   
   // Billing
@@ -537,77 +540,98 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                 </div>
               </div>
 
-              {/* Payment Methods */}
+              {/* Payment Methods / Forms */}
               <div className="md:col-span-2 space-y-6">
-                <button 
-                  onClick={() => setPaymentMethod('card')}
-                  className={`w-full premium-card flex items-center gap-6 text-left transition-all relative overflow-hidden group ${paymentMethod === 'card' ? 'border-orange-500 bg-orange-500/5' : 'border-white/5 hover:border-white/20'}`}
-                >
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${paymentMethod === 'card' ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-500'}`}>
-                    <CreditCard className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-black uppercase tracking-tight italic">Tarjeta Crédito / Débito</h4>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Pago seguro vía OpenPay (BBVA)</p>
-                  </div>
-                  {paymentMethod === 'card' && <CheckCircle2 className="absolute top-6 right-6 text-orange-500 w-6 h-6" />}
-                </button>
-
-                <button 
-                  onClick={() => setPaymentMethod('transfer')}
-                  className={`w-full premium-card flex items-center gap-6 text-left transition-all relative overflow-hidden group ${paymentMethod === 'transfer' ? 'border-blue-500 bg-blue-500/5' : 'border-white/5 hover:border-white/20'}`}
-                >
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${paymentMethod === 'transfer' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-500'}`}>
-                    <Banknote className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-black uppercase tracking-tight italic">Transferencia SPEI</h4>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Verificación manual (24-48 hrs)</p>
-                  </div>
-                  {paymentMethod === 'transfer' && <CheckCircle2 className="absolute top-6 right-6 text-blue-500 w-6 h-6" />}
-                </button>
-
-                {paymentMethod === 'transfer' && bankDetails && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="p-8 bg-black/40 border border-blue-500/30 rounded-[2.5rem] space-y-6"
-                  >
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">Datos Bancarios</h5>
-                    <div className="grid grid-cols-2 gap-6 text-sm">
-                      <div>
-                        <p className="text-slate-500 uppercase text-[9px] font-black tracking-widest mb-1">Banco</p>
-                        <p className="font-bold text-white text-lg">{bankDetails.banco}</p>
+                {showOpenPayForm ? (
+                  <OpenPayForm 
+                    amount={(quantity * (currentType?.price || 0))}
+                    description={`${quantity}x ${currentType?.name} - Encuentro Coparmex`}
+                    customer={attendees[0]}
+                    onSuccess={(transactionId) => {
+                      console.log("Pago exitoso. ID:", transactionId);
+                      handleFinalSubmit();
+                    }}
+                    onCancel={() => setShowOpenPayForm(false)}
+                  />
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => setPaymentMethod('card')}
+                      className={`w-full premium-card flex items-center gap-6 text-left transition-all relative overflow-hidden group ${paymentMethod === 'card' ? 'border-orange-500 bg-orange-500/5' : 'border-white/5 hover:border-white/20'}`}
+                    >
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${paymentMethod === 'card' ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-500'}`}>
+                        <CreditCard className="w-8 h-8" />
                       </div>
                       <div>
-                        <p className="text-slate-500 uppercase text-[9px] font-black tracking-widest mb-1">CLABE</p>
-                        <p className="font-bold text-white text-lg">{bankDetails.clabe}</p>
+                        <h4 className="text-xl font-black uppercase tracking-tight italic">Tarjeta Crédito / Débito</h4>
+                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Pago seguro vía OpenPay (BBVA)</p>
                       </div>
-                      <div className="col-span-2">
-                        <p className="text-slate-500 uppercase text-[9px] font-black tracking-widest mb-1">Titular</p>
-                        <p className="font-bold text-white">{bankDetails.titular}</p>
+                      {paymentMethod === 'card' && <CheckCircle2 className="absolute top-6 right-6 text-orange-500 w-6 h-6" />}
+                    </button>
+
+                    <button 
+                      onClick={() => setPaymentMethod('transfer')}
+                      className={`w-full premium-card flex items-center gap-6 text-left transition-all relative overflow-hidden group ${paymentMethod === 'transfer' ? 'border-blue-500 bg-blue-500/5' : 'border-white/5 hover:border-white/20'}`}
+                    >
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${paymentMethod === 'transfer' ? 'bg-blue-500 text-white' : 'bg-white/5 text-slate-500'}`}>
+                        <Banknote className="w-8 h-8" />
                       </div>
+                      <div>
+                        <h4 className="text-xl font-black uppercase tracking-tight italic">Transferencia SPEI</h4>
+                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Verificación manual (24-48 hrs)</p>
+                      </div>
+                      {paymentMethod === 'transfer' && <CheckCircle2 className="absolute top-6 right-6 text-blue-500 w-6 h-6" />}
+                    </button>
+
+                    {paymentMethod === 'transfer' && bankDetails && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-8 bg-black/40 border border-blue-500/30 rounded-[2.5rem] space-y-6"
+                      >
+                        <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400">Datos Bancarios</h5>
+                        <div className="grid grid-cols-2 gap-6 text-sm">
+                          <div>
+                            <p className="text-slate-500 uppercase text-[9px] font-black tracking-widest mb-1">Banco</p>
+                            <p className="font-bold text-white text-lg">{bankDetails.banco}</p>
+                          </div>
+                          <div>
+                            <p className="text-slate-500 uppercase text-[9px] font-black tracking-widest mb-1">CLABE</p>
+                            <p className="font-bold text-white text-lg">{bankDetails.clabe}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-slate-500 uppercase text-[9px] font-black tracking-widest mb-1">Titular</p>
+                            <p className="font-bold text-white">{bankDetails.titular}</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    <div className="flex justify-between pt-8 items-center">
+                      <button 
+                        onClick={() => setStep(2)}
+                        disabled={loading}
+                        className="text-slate-500 hover:text-white flex items-center gap-3 transition-all font-black uppercase text-xs tracking-widest"
+                      >
+                        <ArrowLeft className="w-5 h-5" /> Regresar
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (paymentMethod === 'card') {
+                            setShowOpenPayForm(true);
+                          } else {
+                            handleFinalSubmit();
+                          }
+                        }}
+                        disabled={loading}
+                        className={`premium-button px-12 py-5 text-2xl font-black transition-all ${paymentMethod === 'card' ? 'premium-gradient-orange' : 'premium-gradient-blue'} text-white flex items-center gap-4`}
+                      >
+                        {loading ? <Loader2 className="w-7 h-7 animate-spin" /> : 
+                         paymentMethod === 'card' ? 'CONFIGURAR PAGO' : 'ENVIAR REGISTRO'}
+                      </button>
                     </div>
-                  </motion.div>
+                  </>
                 )}
-
-                <div className="flex justify-between pt-8 items-center">
-                  <button 
-                    onClick={() => setStep(2)}
-                    disabled={loading}
-                    className="text-slate-500 hover:text-white flex items-center gap-3 transition-all font-black uppercase text-xs tracking-widest"
-                  >
-                    <ArrowLeft className="w-5 h-5" /> Regresar
-                  </button>
-                  <button 
-                    onClick={handleFinalSubmit}
-                    disabled={loading}
-                    className={`premium-button px-12 py-5 text-2xl font-black transition-all ${paymentMethod === 'card' ? 'premium-gradient-orange' : 'premium-gradient-blue'} text-white flex items-center gap-4`}
-                  >
-                    {loading ? <Loader2 className="w-7 h-7 animate-spin" /> : 
-                     paymentMethod === 'card' ? 'PAGAR AHORA' : 'ENVIAR REGISTRO'}
-                  </button>
-                </div>
               </div>
             </div>
           </motion.div>
