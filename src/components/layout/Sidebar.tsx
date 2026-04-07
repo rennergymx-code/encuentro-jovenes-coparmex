@@ -62,6 +62,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
   return (
     <>
+      {/* Global Body Scroll Lock based on isOpen */}
+      <style>{`
+        body {
+          overflow: ${isOpen && window.innerWidth < 1024 ? 'hidden !important' : 'auto'};
+          position: ${isOpen && window.innerWidth < 1024 ? 'fixed !important' : 'static'};
+          width: 100%;
+          height: 100%;
+        }
+      `}</style>
+
       {/* Mobile Toggle Buttons (Only visible on mobile) */}
       <div className="lg:hidden fixed top-4 right-4 z-[60] flex items-center gap-3">
         <button 
@@ -73,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className="p-3 bg-branding-orange/10 backdrop-blur-xl rounded-2xl text-branding-orange shadow-xl border border-branding-orange/20 active:scale-95 transition-all"
+          className="p-3 bg-branding-orange/10 backdrop-blur-xl rounded-2xl text-branding-orange shadow-xl border border-branding-orange/20 active:scale-95 transition-all focus:outline-none"
         >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -83,10 +93,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="lg:hidden fixed inset-0 z-50 bg-[#0b0c14]/98 backdrop-blur-2xl px-6 pt-24 pb-12 overflow-y-auto"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="lg:hidden fixed inset-0 z-50 bg-[#0b0c14]/98 backdrop-blur-3xl px-6 pt-24 pb-12 overflow-y-auto overscroll-none touch-pan-y"
           >
             {/* Background elements */}
             <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[40%] bg-branding-orange/10 rounded-full blur-[100px] pointer-events-none" />

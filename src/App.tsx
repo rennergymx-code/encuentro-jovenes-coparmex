@@ -286,16 +286,17 @@ export default function App() {
                   </button>
 
                   <div className="flex items-center justify-center mt-6">
-                    {isAdmin && (
+                  {isAdmin && (
+                    <div className="flex justify-center mt-4">
                       <button 
                         onClick={() => { navigate('/dashboard'); setActiveArea('admin'); setIsMobileMenuOpen(false); }}
-                        className="w-full flex items-center gap-4 p-5 rounded-3xl bg-white/5 border border-white/5 transition-all active:scale-95 group justify-center"
+                        className="opacity-20 hover:opacity-100 transition-opacity p-2"
                         title="Gestión"
                       >
-                        <SahuaroIcon className="w-8 h-8 opacity-40 group-hover:opacity-100 transition-opacity" color="#FF5100" />
-                        <span className="text-xs font-black uppercase tracking-[0.3em] text-white/40 group-hover:text-white">Panel de Gestión</span>
+                        <SahuaroIcon className="w-10 h-10" color="#FF5100" />
                       </button>
-                    )}
+                    </div>
+                  )}
                   </div>
                 </div>
               </motion.div>

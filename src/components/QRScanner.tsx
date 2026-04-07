@@ -452,11 +452,15 @@ export default function QRScanner() {
                     </div>
 
                     <button 
-                        onClick={stopScanner}
+                        onClick={() => {
+                            setScannedData(null);
+                            setError(null);
+                            stopScanner();
+                        }}
                         className="w-full premium-button premium-gradient-orange text-white py-6 rounded-[24px] font-black uppercase tracking-widest flex items-center justify-center gap-3 text-lg active:scale-95 transition-all shadow-xl"
                     >
                         <QrCode className="w-6 h-6" />
-                        {error ? 'Volver a Intentar' : 'Finalizar y Nuevo Escaneo'}
+                        {error ? 'Volver a Intentar' : 'Finalizar Operación'}
                     </button>
                   </motion.div>
                 ) : !isScanning ? (
