@@ -208,11 +208,19 @@ export default function QRScanner() {
         if (updateError) throw updateError;
         
         playSound('success');
-        setScannedData(data);
-        toast.success(`Acceso: ${data.attendee_name}`);
+        setScannedData(data); // Show detailed success UI
+        // Trigger local attendance feed update immediately
+        setRecentFeed(prev => [
+          { ...data, status: 'scanned', scanned_at: new Date().toISOString() },
+          ...prev.filter(t => t.id !== data.id)
+        ].slice(0, 15));
+        
+        toast.success(`Acceso concedido: ${data.attendee_name}`);
       }
-    } catch (err) {
-      toast.error("Error de conexión");
+    } catch (err: any) {
+      console.error("Scan processing error:", err);
+      const isAuthError = err.code === '42501' || err.message?.includes('permission');
+      toast.error(isAuthError ? "Error de permisos en DB" : "Error de conexión o datos");
       // If error, auto-resume after a small delay
       setTimeout(() => {
         resumeScanner();
