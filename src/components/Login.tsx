@@ -21,7 +21,6 @@ export default function Login({ onSuccess, onBack }: LoginProps) {
 
     // Bypass for the user's requested admin credentials
     if (email === 'admin' && password === '123456') {
-      toast.success('Acceso de desarrollador concedido');
       // In a real app we'd set a real session, 
       // but for this specific request we'll just trigger success
       // and App.tsx will check if the "mock" session exists or just allow it.
