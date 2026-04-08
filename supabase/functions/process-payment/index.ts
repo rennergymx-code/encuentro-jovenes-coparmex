@@ -41,7 +41,8 @@ serve(async (req) => {
         name: firstName,
         last_name: lastName,
         email: customer.email,
-        phone_number: phone
+        phone_number: phone,
+        address: customer.address
       },
       send_email: true,
       use_3d_secure: true,

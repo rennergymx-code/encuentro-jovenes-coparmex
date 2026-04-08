@@ -24,8 +24,13 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
     holder_name: '',
     card_number: '',
     expiration: '', // MM/AA
-    cvv2: ''
+    cvv2: '',
+    line1: '',
+    postal_code: '',
+    city: '',
+    state: ''
   });
+
 
   // Logos URLs localizados previamente
   const LOGOS = {
@@ -102,11 +107,19 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
           customer: {
             name: customer.name,
             email: customer.email,
-            phone_number: cleanPhone
+            phone_number: cleanPhone,
+            address: {
+              line1: formData.line1,
+              postal_code: formData.postal_code,
+              city: formData.city,
+              state: formData.state,
+              country_code: 'MX'
+            }
           },
           redirect_url: `${window.location.origin}/checkout/verificar`
         }
       });
+
 
       if (funcError || !data || data.error) {
         throw data || funcError || new Error("Error en el servidor de pagos");
@@ -235,6 +248,56 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
               </div>
             </div>
           </div>
+
+          <div className="pt-2 border-t border-white/5 mt-4">
+            <label className="text-xs uppercase tracking-widest text-white/40 ml-1 mb-4 block">Dirección de Facturación (Requerido 3DS)</label>
+            
+            <div className="mb-4">
+              <input
+                type="text"
+                name="line1"
+                required
+                placeholder="Calle y Número"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-white focus:border-[#FF5100]/50 focus:ring-0 transition-all outline-none"
+                value={formData.line1}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                name="postal_code"
+                required
+                placeholder="CP"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-white focus:border-[#FF5100]/50 focus:ring-0 transition-all outline-none"
+                value={formData.postal_code}
+                onChange={handleInputChange}
+              />
+              <input
+                type="text"
+                name="city"
+                required
+                placeholder="Ciudad"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-white focus:border-[#FF5100]/50 focus:ring-0 transition-all outline-none"
+                value={formData.city}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="mt-4">
+              <input
+                type="text"
+                name="state"
+                required
+                placeholder="Estado"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-white focus:border-[#FF5100]/50 focus:ring-0 transition-all outline-none"
+                value={formData.state}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
 
           {error && (
             <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 animate-shake">
