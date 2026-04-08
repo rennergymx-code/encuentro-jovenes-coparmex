@@ -50,6 +50,7 @@ interface DashboardProps {
 export default function Dashboard({ forceTab }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>(forceTab || 'overview');
   const [tickets, setTickets] = useState<any[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>(PROGRAM as any[]);
@@ -88,15 +89,17 @@ export default function Dashboard({ forceTab }: DashboardProps) {
 
   async function fetchData() {
     try {
-      const [{ data: tData }, { data: pData }, { data: qData }, { data: sData }, { data: spData }] = await Promise.all([
+      const [{ data: tData }, { data: pData }, { data: qData }, { data: sData }, { data: spData }, { data: ttData }] = await Promise.all([
         supabase.from('tickets').select('*').order('created_at', { ascending: false }),
         supabase.from('purchases').select('*').order('created_at', { ascending: false }),
         supabase.from('questions').select('*').order('created_at', { ascending: false }),
         supabase.from('agenda').select('*').order('time', { ascending: true }),
-        supabase.from('sponsors').select('*').order('created_at', { ascending: false })
+        supabase.from('sponsors').select('*').order('created_at', { ascending: false }),
+        supabase.from('ticket_types').select('*').order('name', { ascending: true })
       ]);
 
       if (tData) setTickets(tData);
+      if (ttData) setTicketTypes(ttData);
       if (pData) setPurchases(pData);
       if (qData) setQuestions(qData);
       
@@ -386,18 +389,21 @@ export default function Dashboard({ forceTab }: DashboardProps) {
                   <TicketIcon className="w-4 h-4" /> Tipos de Carnet
                 </h5>
                 <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Acceso General</span>
-                    <span className="font-black">{tickets.filter(t => t.type === 'general').length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Estudiante</span>
-                    <span className="font-black">{tickets.filter(t => t.type === 'estudiante').length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">VIP - Cortesía</span>
-                    <span className="font-black">{tickets.filter(t => t.type === 'vip').length}</span>
-                  </div>
+                  {ticketTypes.map(type => (
+                    <div key={type.id} className="flex justify-between items-center group/item hover:bg-white/5 p-2 rounded-xl transition-all">
+                      <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter group-hover/item:text-white transition-colors">
+                        {type.name}
+                      </span>
+                      <span className="font-black text-white group-hover/item:text-branding-orange transition-colors">
+                        {tickets.filter(t => t.type === type.id).length}
+                      </span>
+                    </div>
+                  ))}
+                  {ticketTypes.length === 0 && (
+                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest italic text-center py-4">
+                      Cargando categorías...
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
