@@ -375,6 +375,15 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                           if (currentType?.price === 0) {
                             handleFinalSubmit();
                           } else {
+                            // Guardar estado completo para recuperación tras 3DS
+                            const stateToSave = {
+                              attendees,
+                              selectedType,
+                              quantity,
+                              billing: {...billing, requiresInvoice: false},
+                              paymentMethod: 'card'
+                            };
+                            sessionStorage.setItem('checkout_state', JSON.stringify(stateToSave));
                             setStep(3);
                           }
                         }}
@@ -487,7 +496,18 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                   <div className="pt-6 border-t border-orange-500/10">
                     <button 
                       disabled={!validateBilling()}
-                      onClick={() => setStep(3)}
+                      onClick={() => {
+                        // Guardar estado completo para recuperación tras 3DS
+                        const stateToSave = {
+                          attendees,
+                          selectedType,
+                          quantity,
+                          billing: {...billing, requiresInvoice: true},
+                          paymentMethod: 'card'
+                        };
+                        sessionStorage.setItem('checkout_state', JSON.stringify(stateToSave));
+                        setStep(3);
+                      }}
                       className="w-full premium-button premium-gradient-orange text-white px-8 py-5 text-xl font-black shadow-xl shadow-orange-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30"
                     >
                       CONTINUAR AL PAGO
