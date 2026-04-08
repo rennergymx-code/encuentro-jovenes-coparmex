@@ -8,6 +8,7 @@ import { Toaster } from 'sonner';
 import { supabase } from './services/supabaseClient';
 import LandingPage from './components/LandingPage';
 import CheckoutFlow from './components/CheckoutFlow';
+import PaymentStatus from './components/Checkout/PaymentStatus';
 import Dashboard from './components/Dashboard';
 import QRScanner from './components/QRScanner';
 import MyTickets from './components/MyTickets';
@@ -15,6 +16,7 @@ import Login from './components/Login';
 import TermsPage from './components/TermsPage';
 import PrivacyPage from './components/PrivacyPage';
 import TravelPage from './components/TravelPage';
+import ContactPage from './components/ContactPage';
 import AskQuestion from './components/AskQuestion';
 import QAProjection from './components/QAProjection';
 import CookieBanner from './components/CookieBanner';
@@ -130,10 +132,12 @@ export default function App() {
             if(v === 'login') navigate('/login');
           }} />} />
           <Route path="/checkout" element={<div className="pt-24 min-h-screen"><CheckoutFlow onComplete={() => navigate('/mis-tickets')} /></div>} />
+          <Route path="/checkout/verificar" element={<PaymentStatus />} />
           <Route path="/login" element={<div className="pt-24 min-h-screen flex items-center justify-center"><Login onSuccess={handleLoginSuccess} onBack={() => navigate('/')} /></div>} />
           <Route path="/mis-tickets" element={<div className="pt-24 min-h-screen"><MyTickets /></div>} />
           <Route path="/legal/terminos" element={<div className="pt-24 min-h-screen"><TermsPage onBack={() => navigate('/')} /></div>} />
           <Route path="/legal/privacidad" element={<div className="pt-24 min-h-screen"><PrivacyPage onBack={() => navigate('/')} /></div>} />
+          <Route path="/contacto" element={<div className="pt-24 min-h-screen"><ContactPage onBack={() => navigate('/')} /></div>} />
           <Route path="/guia-viaje" element={<TravelPage onBack={() => navigate('/')} />} />
           <Route path="/ask-question" element={<AskQuestion />} />
           <Route path="/qa-projection" element={<QAProjection />} />

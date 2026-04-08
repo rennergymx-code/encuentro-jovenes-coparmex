@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '../services/supabaseClient';
 import OpenPayForm from './Checkout/OpenPayForm';
+import TicketCarnet from './Checkout/TicketCarnet';
 import { openPayService } from '../services/openpayService';
 
 interface CheckoutFlowProps {
@@ -61,6 +62,8 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'transfer'>('card');
   const [showOpenPayForm, setShowOpenPayForm] = useState(false);
   const [showBillingForm, setShowBillingForm] = useState(false);
+  const [finalTickets, setFinalTickets] = useState<any[]>([]);
+  const [purchaseId, setPurchaseId] = useState<string | null>(null);
   
   // Billing
   const [billing, setBilling] = useState<BillingInfo>({
@@ -73,6 +76,9 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
     formaPago: '03', // Transferencia electrónica de fondos
     usoCfdi: 'G03' // Gastos en general
   });
+
+  const currentType = ticketTypes.find(t => t.id === selectedType);
+  const totalAmount = (currentType?.price || 0) * quantity;
 
   useEffect(() => {
     fetchData();
@@ -100,9 +106,17 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
 
   const updateAttendee = (index: number, field: keyof Attendee, value: string) => {
     const newAttendees = [...attendees];
-    newAttendees[index] = { ...newAttendees[index], [field]: value };
+    let sanitizedValue = value;
+    
+    // Auto-sanitizar teléfono: solo números, max 10 dígitos
+    if (field === 'phone') {
+      sanitizedValue = value.replace(/\D/g, '').slice(0, 10);
+    }
+    
+    newAttendees[index] = { ...newAttendees[index], [field]: sanitizedValue };
     setAttendees(newAttendees);
   };
+
 
   const validateAttendees = () => {
     return attendees.every(a => a.name.trim() && a.email.trim() && a.phone.trim());
@@ -116,10 +130,9 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
   const handleFinalSubmit = async () => {
     setLoading(true);
     try {
-      const selectedTypeData = ticketTypes.find(t => t.id === selectedType);
-      const totalAmount = (selectedTypeData?.price || 0) * quantity;
-      const status = paymentMethod === 'card' ? 'completed' : 'pending_verification';
-      const ticketStatus = paymentMethod === 'card' ? 'active' : 'pending';
+      const isFree = (currentType?.price || 0) === 0;
+      const status = isFree || paymentMethod === 'card' ? 'completed' : 'pending_verification';
+      const ticketStatus = isFree || paymentMethod === 'card' ? 'active' : 'pending';
 
       const { data: purchase, error: pError } = await supabase
         .from('purchases')
@@ -127,7 +140,7 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
           buyer_name: attendees[0].name,
           buyer_email: attendees[0].email,
           total_amount: totalAmount,
-          payment_method: paymentMethod,
+          payment_method: isFree ? 'free' : paymentMethod,
           status: status,
           billing_info: billing.requiresInvoice ? billing : {}
         }])
@@ -156,6 +169,8 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
 
       if (tError) throw tError;
 
+      setFinalTickets(ticketsToInsert);
+      setPurchaseId(purchase.id);
       toast.success(paymentMethod === 'card' ? '¡Pago exitoso!' : 'Registro recibido. Pendiente de verificación.');
       setStep(4); // Now step 4 is success
     } catch (error: any) {
@@ -165,8 +180,6 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
       setLoading(false);
     }
   };
-
-  const currentType = ticketTypes.find(t => t.id === selectedType);
 
   // Mapping internal steps to progress bar dots
   // Internal: 1 (Tickets), 2 (Registro), 3 (Pago), 4 (Exito)
@@ -210,7 +223,7 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {ticketTypes.filter(t => t.id !== 'vip').map((type) => (
+              {ticketTypes.filter(t => ['general', 'prueba'].includes(t.id)).map((type) => (
                 <button
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
@@ -222,13 +235,6 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                   <h3 className="text-2xl font-black uppercase tracking-tight mb-2 group-hover:text-orange-500 transition-colors">{type.name}</h3>
                   <p className="text-slate-500 text-sm font-medium">Válido para acceso total a conferencias, conversatorios y after</p>
                   <p className="text-orange-500 font-black text-3xl mt-6">${type.price.toLocaleString()} <span className="text-xs uppercase text-slate-500 font-bold">MXN</span></p>
-                  
-                  {type.id === 'estudiante' && (
-                    <div className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-orange-300/60 p-2 bg-orange-500/5 rounded-xl border border-orange-500/10">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Presentar credencial física en el evento
-                    </div>
-                  )}
                 </button>
               ))}
             </div>
@@ -336,36 +342,46 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                   ))}
 
                   <div className="flex flex-col md:flex-row gap-6 pt-12 border-t border-white/5">
-                    <div className="flex-1 space-y-4">
-                      <h4 className="text-xl font-black uppercase italic tracking-tighter">¿Necesitas Factura?</h4>
-                      <p className="text-slate-500 text-xs leading-relaxed font-medium">Si requieres comprobante fiscal, selecciona esta opción para ingresar tus datos.</p>
-                      <button 
-                        disabled={!validateAttendees()}
-                        onClick={() => {
-                          setBilling({...billing, requiresInvoice: true});
-                          setShowBillingForm(true);
-                        }}
-                        className="w-full premium-button bg-white/5 border border-white/10 text-white px-8 py-5 text-lg font-black hover:bg-white/10 transition-all flex items-center justify-center gap-3 group disabled:opacity-30"
-                      >
-                        SÍ, LLENAR DATOS DE FACTURACIÓN
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
+                    {currentType?.price !== 0 && (
+                      <div className="flex-1 space-y-4">
+                        <h4 className="text-xl font-black uppercase italic tracking-tighter">¿Necesitas Factura?</h4>
+                        <p className="text-slate-500 text-xs leading-relaxed font-medium">Si requieres comprobante fiscal, selecciona esta opción para ingresar tus datos.</p>
+                        <button 
+                          disabled={!validateAttendees()}
+                          onClick={() => {
+                            setBilling({...billing, requiresInvoice: true});
+                            setShowBillingForm(true);
+                          }}
+                          className="w-full premium-button bg-white/5 border border-white/10 text-white px-8 py-5 text-lg font-black hover:bg-white/10 transition-all flex items-center justify-center gap-3 group disabled:opacity-30"
+                        >
+                          SÍ, LLENAR DATOS DE FACTURACIÓN
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                    )}
 
-                    <div className="w-px bg-white/5 hidden md:block" />
+                    {currentType?.price !== 0 && <div className="w-px bg-white/5 hidden md:block" />}
 
                     <div className="flex-1 flex flex-col justify-end gap-4">
-                      <p className="text-slate-500 text-xs leading-relaxed font-medium md:text-right">Al continuar sin factura, irás directamente a la selección del método de pago.</p>
+                      <p className="text-slate-500 text-xs leading-relaxed font-medium md:text-right">
+                        {currentType?.price === 0 
+                          ? 'Al ser un registro gratuito, puedes finalizar directamente.'
+                          : 'Al continuar sin factura, irás directamente a la selección del método de pago.'}
+                      </p>
                       <button 
                         disabled={!validateAttendees()}
                         onClick={() => {
                           setBilling({...billing, requiresInvoice: false});
-                          setStep(3);
+                          if (currentType?.price === 0) {
+                            handleFinalSubmit();
+                          } else {
+                            setStep(3);
+                          }
                         }}
                         className="w-full premium-button premium-gradient-orange text-white px-8 py-5 text-lg font-black shadow-xl shadow-orange-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30"
                       >
-                        NO, IR AL PAGO
-                        <CreditCard className="w-5 h-5" />
+                        {currentType?.price === 0 ? 'FINALIZAR REGISTRO' : 'NO, IR AL PAGO'}
+                        {currentType?.price === 0 ? <CheckCircle2 className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
@@ -533,7 +549,10 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                   </div>
                 </div>
 
-                <div className="p-6 border border-white/5 rounded-3xl bg-black/40">
+                <div className="p-6 border border-white/5 rounded-3xl bg-black/40 space-y-3">
+                  <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                    Las transacciones serán efectuadas mediante la pasarela de Openpay.
+                  </p>
                   <p className="text-[10px] text-slate-500 italic leading-relaxed">
                     Al proceder con el pago, aceptas los términos y condiciones del evento Encuentro Jóvenes Coparmex 2026.
                   </p>
@@ -618,6 +637,15 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
                       <button 
                         onClick={() => {
                           if (paymentMethod === 'card') {
+                            // Guardar estado crítico en sessionStorage antes de iniciar pago (3DS)
+                            const checkoutState = {
+                              attendees,
+                              selectedType,
+                              quantity,
+                              billing,
+                              paymentMethod
+                            };
+                            sessionStorage.setItem('checkout_state', JSON.stringify(checkoutState));
                             setShowOpenPayForm(true);
                           } else {
                             handleFinalSubmit();
@@ -637,7 +665,6 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
           </motion.div>
         )}
 
-        {/* SUCCESS STEP */}
         {step === 4 && (
           <motion.div 
             key="step4"
@@ -646,30 +673,52 @@ export default function CheckoutFlow({ onComplete }: CheckoutFlowProps) {
             className="text-center py-16 space-y-12"
           >
             <div className="relative">
-              <div className="w-32 h-32 bg-orange-500 rounded-full flex items-center justify-center mx-auto shadow-[0_0_80px_rgba(255,78,0,0.4)] animate-bounce">
-                <CheckCircle2 className="w-16 h-16 text-white" />
+              <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-8 border border-orange-500/30">
+                <CheckCircle2 className="w-12 h-12 text-orange-500" />
               </div>
-              <div className="absolute inset-0 bg-orange-500 blur-[80px] opacity-20 -z-10 rounded-full" />
+              <div className="absolute inset-0 bg-orange-500 blur-[80px] opacity-10 -z-10 rounded-full" />
             </div>
 
             <div className="space-y-6 max-w-2xl mx-auto">
-              <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-tight">
+              <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-tight">
                 {paymentMethod === 'card' ? '¡Tu acceso está ' : 'Registro '}<span className="text-orange-500">{paymentMethod === 'card' ? 'LISTO!' : 'RECIBIDO'}</span>
               </h2>
-              <p className="text-xl text-slate-400 font-medium leading-relaxed">
+              <p className="text-lg text-slate-400 font-medium leading-relaxed">
                 {paymentMethod === 'card' ? 
-                  'Hemos enviado los carnets digitales y el recibo a tu correo electrónico.' : 
+                  'Aquí tienes tus carnets digitales. Puedes descargarlos individualmente ahora mismo.' : 
                   'Una vez que realices la transferencia y la validemos, tus carnets aparecerán activos en tu cuenta.'}
               </p>
             </div>
 
-            <div className="pt-8 flex flex-col md:flex-row justify-center gap-6">
-              <button onClick={onComplete} className="premium-button bg-white text-black px-12 py-5 text-xl font-black">
-                <QrCode className="w-6 h-6 mr-2" /> VER MIS BOLETOS
+            {paymentMethod === 'card' && finalTickets.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-12 pt-12 max-w-4xl mx-auto">
+                {finalTickets.map((ticket, i) => (
+                  <motion.div 
+                    key={ticket.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.2 }}
+                  >
+                    <TicketCarnet 
+                      ticket={{
+                        ...ticket,
+                        type: ticket.type || selectedType 
+                      }} 
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-16 flex flex-col md:flex-row justify-center gap-6">
+              <button onClick={onComplete} className="px-12 py-5 rounded-[2rem] border border-white/10 text-slate-400 font-black uppercase tracking-widest text-xs hover:bg-white/5 transition-all">
+                VOLVER AL INICIO
               </button>
-              <button onClick={() => window.print()} className="px-12 py-5 rounded-[2rem] border border-white/10 text-slate-400 font-black uppercase tracking-widest text-xs">
-                IMPRIMIR RECIBO
-              </button>
+              {paymentMethod === 'transfer' && (
+                <button onClick={() => window.print()} className="px-12 py-5 rounded-[2rem] border border-white/10 text-slate-400 font-black uppercase tracking-widest text-xs">
+                  IMPRIMIR DATOS BANCARIOS
+                </button>
+              )}
             </div>
           </motion.div>
         )}

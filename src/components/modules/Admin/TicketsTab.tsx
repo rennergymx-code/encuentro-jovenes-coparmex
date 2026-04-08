@@ -16,7 +16,8 @@ import {
   Filter,
   RefreshCw,
   Receipt,
-  QrCode
+  QrCode,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import { toast } from 'sonner';
@@ -40,6 +41,13 @@ export default function TicketsTab({ tickets, searchTerm, setSearchTerm, onRefre
   const [isAuthorizing, setIsAuthorizing] = useState<string | null>(null);
   const [selectedBilling, setSelectedBilling] = useState<any | null>(null);
   const [selectedTicketForQR, setSelectedTicketForQR] = useState<any | null>(null);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
+  const [createForm, setCreateForm] = useState({ 
+    attendee_name: '', 
+    attendee_email: '', 
+    attendee_phone: '',
+    type: 'general' 
+  });
 
   useEffect(() => {
     if (view === 'purchases') {
@@ -114,6 +122,57 @@ export default function TicketsTab({ tickets, searchTerm, setSearchTerm, onRefre
       toast.error('Error al autorizar: ' + err.message);
     } finally {
       setIsAuthorizing(null);
+    }
+  };
+
+  const handleManualCreate = async () => {
+    if (!createForm.attendee_name || !createForm.attendee_email) {
+      toast.error('Nombre y Correo son obligatorios');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // 1. Create a "manual" purchase
+      const { data: purchase, error: pError } = await supabase
+        .from('purchases')
+        .insert([{
+          buyer_name: createForm.attendee_name,
+          buyer_email: createForm.attendee_email,
+          total_amount: 0,
+          payment_method: 'admin_manual',
+          status: 'completed'
+        }])
+        .select()
+        .single();
+
+      if (pError) throw pError;
+
+      // 2. Create the ticket
+      const ticketId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const { error: tError } = await supabase
+        .from('tickets')
+        .insert([{
+          id: ticketId,
+          purchase_id: purchase.id,
+          attendee_name: createForm.attendee_name,
+          attendee_email: createForm.attendee_email,
+          attendee_phone: createForm.attendee_phone,
+          type: createForm.type,
+          qr_code: ticketId,
+          status: 'active'
+        }]);
+
+      if (tError) throw tError;
+
+      toast.success('Carnet creado exitosamente');
+      setIsCreatingTicket(false);
+      setCreateForm({ attendee_name: '', attendee_email: '', attendee_phone: '', type: 'general' });
+      onRefresh();
+    } catch (err: any) {
+      toast.error('Error al crear carnet: ' + err.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -197,6 +256,14 @@ export default function TicketsTab({ tickets, searchTerm, setSearchTerm, onRefre
                 className="w-full bg-slate-900 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-orange-500 outline-none transition-all font-medium h-14"
               />
             </div>
+
+            <button 
+              onClick={() => setIsCreatingTicket(true)}
+              className="premium-button premium-gradient-orange text-white h-14 px-6 flex items-center gap-2"
+            >
+              <QrCode className="w-5 h-5" />
+              <span className="hidden sm:inline">Crear Carnet</span>
+            </button>
           </div>
         </div>
 
@@ -531,6 +598,79 @@ export default function TicketsTab({ tickets, searchTerm, setSearchTerm, onRefre
             </button>
           </div>
         )}
+      </AdminModal>
+
+      {/* MODAL PARA CREAR CARNET MANUAL */}
+      <AdminModal
+        isOpen={isCreatingTicket}
+        onClose={() => setIsCreatingTicket(false)}
+        title="Crear Carnet Manual"
+      >
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1">Nombre Completo</label>
+              <input 
+                type="text" 
+                value={createForm.attendee_name}
+                onChange={(e) => setCreateForm({...createForm, attendee_name: e.target.value})}
+                className="w-full bg-slate-900 border border-white/10 rounded-xl py-4 px-5 focus:border-orange-500 outline-none text-white font-bold"
+                placeholder="Nombre del asistente"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1">Correo Electrónico</label>
+              <input 
+                type="email" 
+                value={createForm.attendee_email}
+                onChange={(e) => setCreateForm({...createForm, attendee_email: e.target.value})}
+                className="w-full bg-slate-900 border border-white/10 rounded-xl py-4 px-5 focus:border-orange-500 outline-none text-white font-bold"
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1">Teléfono (Opcional)</label>
+              <input 
+                type="text" 
+                value={createForm.attendee_phone}
+                onChange={(e) => setCreateForm({...createForm, attendee_phone: e.target.value})}
+                className="w-full bg-slate-900 border border-white/10 rounded-xl py-4 px-5 focus:border-orange-500 outline-none text-white font-bold"
+                placeholder="6621234567"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest ml-1">Tipo de Carnet</label>
+              <select 
+                value={createForm.type}
+                onChange={(e) => setCreateForm({...createForm, type: e.target.value})}
+                className="w-full bg-slate-900 border border-white/10 rounded-xl py-4 px-5 focus:border-orange-500 outline-none text-white font-bold"
+              >
+                <option value="general">Acceso General</option>
+                <option value="vip">VIP - CORTESÍA</option>
+                <option value="medios">Medios</option>
+                <option value="patrocinador">Patrocinador</option>
+              </select>
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button 
+                onClick={() => setIsCreatingTicket(false)}
+                className="flex-1 px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleManualCreate}
+                disabled={isSaving}
+                className="flex-[2] premium-button premium-gradient-orange text-white px-8 py-4 flex items-center justify-center gap-2"
+              >
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Crear Carnet
+              </button>
+            </div>
+          </div>
       </AdminModal>
     </>
   );

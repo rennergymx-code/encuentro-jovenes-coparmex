@@ -144,3 +144,8 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-white/10 rounded-full border-2 border-transparent bg-clip-content hover:bg-white/20 transition-colors;
 }
+
+/* Ocultar la leyenda inyectada por OpenPay para evitar el parpadeo visual */
+fieldset legend {
+  display: none !important;
+}

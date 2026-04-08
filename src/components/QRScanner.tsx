@@ -119,6 +119,39 @@ export default function QRScanner() {
     };
   }, []);
 
+  const getTypeStyles = (type: string) => {
+    const t = type?.toLowerCase();
+    if (t === 'vip') return {
+      border: 'border-purple-500/30',
+      bg: 'bg-purple-500/5',
+      text: 'text-purple-400',
+      glow: 'shadow-purple-500/20',
+      accent: 'bg-purple-500'
+    };
+    if (t === 'medios') return {
+      border: 'border-blue-500/30',
+      bg: 'bg-blue-500/5',
+      text: 'text-blue-400',
+      glow: 'shadow-blue-500/20',
+      accent: 'bg-blue-500'
+    };
+    if (t === 'patrocinador' || t === 'prueba') return {
+      border: 'border-orange-500/30',
+      bg: 'bg-orange-500/5',
+      text: 'text-orange-500',
+      glow: 'shadow-orange-500/20',
+      accent: 'bg-orange-500'
+    };
+    // Default / General
+    return {
+      border: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/5',
+      text: 'text-emerald-400',
+      glow: 'shadow-emerald-500/20',
+      accent: 'bg-emerald-500'
+    };
+  };
+
   const startScanner = async () => {
     initAudio();
     setIsScanning(true);
@@ -337,7 +370,7 @@ export default function QRScanner() {
                       <h3 className="text-6xl md:text-7xl font-black uppercase tracking-tighter mb-4 text-white">
                         {scannedData.attendee_name}
                       </h3>
-                      <p className={`text-xl font-black uppercase tracking-widest ${error ? 'text-red-400' : 'text-emerald-400'}`}>
+                      <p className={`text-xl font-black uppercase tracking-widest ${error ? 'text-red-400' : getTypeStyles(scannedData.type).text}`}>
                         {error || `¡BIENVENIDO(A)! - ${scannedData.type}`}
                       </p>
 
@@ -438,11 +471,11 @@ export default function QRScanner() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
                     className={`p-10 rounded-[40px] border-2 flex flex-col items-center text-center shadow-2xl relative z-50 ${
-                        error ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'
+                        error ? 'bg-red-500/10 border-red-500/20' : `${getTypeStyles(scannedData.type).bg} ${getTypeStyles(scannedData.type).border}`
                     }`}
                   >
                     <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-xl ${
-                        error ? 'bg-red-500' : 'bg-emerald-500'
+                        error ? 'bg-red-500' : getTypeStyles(scannedData.type).accent
                     }`}>
                         {error ? <AlertCircle className="w-12 h-12 text-white" /> : <CheckCircle2 className="w-12 h-12 text-white" />}
                     </div>
@@ -450,7 +483,7 @@ export default function QRScanner() {
                     <h3 className="text-4xl font-black uppercase tracking-tight text-white mb-2 leading-none">
                         {scannedData.attendee_name}
                     </h3>
-                    <div className={`text-sm font-black uppercase tracking-widest mb-10 ${error ? 'text-red-400' : 'text-emerald-400'}`}>
+                    <div className={`text-sm font-black uppercase tracking-widest mb-10 ${error ? 'text-red-400' : getTypeStyles(scannedData.type).text}`}>
                         {error || (
                             <div className="space-y-1">
                                 <span className="block opacity-50 text-[10px]">Carnet {scannedData.type}</span>

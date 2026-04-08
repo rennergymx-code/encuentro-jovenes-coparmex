@@ -102,7 +102,10 @@ export default function TermsPage({ onBack }: TermsPageProps) {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 uppercase tracking-wider">5. Terceros y Plataformas de Pago</h2>
             <p>
-              Es posible que el Portal utilice plataformas de pago de terceros. Dichas plataformas son independientes de COPARMEX SONORA NORTE y su finalidad es facilitar transacciones seguras. COPARMEX no asume responsabilidad derivada del funcionamiento exclusivo de las plataformas de pagos o pasarelas transaccionales ajenas.
+              <strong>Las transacciones serán efectuadas mediante la pasarela de Openpay.</strong> Para el procesamiento de pagos mediante tarjeta de crédito, débito y otros métodos electrónicos, el Portal utiliza los servicios de esta plataforma. Openpay es independiente de COPARMEX SONORA NORTE y su finalidad es facilitar transacciones seguras bajo estándares internacionales de seguridad (PCI DSS).
+            </p>
+            <p className="mt-4">
+              COPARMEX no asume responsabilidad derivada del funcionamiento exclusivo de las plataformas de pagos o pasarelas transaccionales ajenas. El Usuario acepta sujetarse a los términos y condiciones propios de OpenPay al momento de realizar su pago.
             </p>
             <p className="mt-4">
               Asimismo, la existencia de enlaces a sitios de terceros, patrocinadores o aliados estratégicos en el Portal no constituye una responsabilidad directa de COPARMEX SONORA NORTE respecto a su contenido, operaciones o políticas.
@@ -128,7 +131,7 @@ export default function TermsPage({ onBack }: TermsPageProps) {
 
           <section className="pt-8 border-t border-white/5">
             <p className="text-xs text-white/40 italic">
-              Última actualización: 07 de Abril, 2026. <br />
+              Última actualización: 08 de Abril, 2026. <br />
               CENTRO EMPRESARIAL DEL NORTE DE SONORA S.P. (CEN811214EKA) <br />
               Hermosillo, Sonora.
             </p>

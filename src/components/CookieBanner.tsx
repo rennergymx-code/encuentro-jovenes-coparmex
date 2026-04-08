@@ -42,7 +42,7 @@ export default function CookieBanner() {
               <div className="flex-1 text-center md:text-left z-10">
                 <h3 className="text-white font-bold mb-1">Aviso de Privacidad y Cookies</h3>
                 <p className="text-white/60 text-xs md:text-sm leading-relaxed">
-                  Utilizamos cookies para garantizar que obtengas la mejor experiencia en nuestro sitio y procesar tus pagos de manera segura. Al continuar navegando, aceptas nuestra política de privacidad.
+                  Utilizamos cookies para garantizar que obtengas la mejor experiencia en nuestro sitio y procesar tus pagos de manera segura. <strong>Las transacciones serán efectuadas mediante la pasarela de Openpay.</strong> Al continuar navegando, aceptas nuestra política de privacidad.
                 </p>
               </div>
 

@@ -29,10 +29,10 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
 
   // Logos URLs localizados previamente
   const LOGOS = {
-    openpay: 'https://logos-download.com/wp-content/uploads/2016/09/Openpay_logo.png',
-    visa: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Visa_2021.svg/1200px-Visa_2021.svg.png',
-    mastercard: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/1200px-Mastercard_2019_logo.svg.png',
-    amex: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/American_Express_logo_%282018%29.svg/1200px-American_Express_logo_%282018%29.svg.png'
+    openpay: '/assets/logos/openpay/openpay_logo.jpg',
+    visa: '/assets/logos/openpay/visa.png',
+    mastercard: '/assets/logos/openpay/masterCard.png',
+    amex: '/assets/logos/openpay/americanExpress.png'
   };
 
   useEffect(() => {
@@ -77,6 +77,12 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
 
     try {
       const [month, year] = formData.expiration.split('/');
+
+      // Validación de Teléfono (Checklist BBVA: 10 dígitos)
+      const cleanPhone = customer.phone.replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        throw { message: "El número de teléfono del asistente debe tener 10 dígitos." };
+      }
       
       const tokenId = await openPayService.createToken({
         holder_name: formData.holder_name,
@@ -96,8 +102,9 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
           customer: {
             name: customer.name,
             email: customer.email,
-            phone_number: customer.phone.replace(/\D/g, '') // OpenPay requiere formato numérico
-          }
+            phone_number: cleanPhone
+          },
+          redirect_url: `${window.location.origin}/checkout/verificar`
         }
       });
 
@@ -105,27 +112,41 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
         throw data || funcError || new Error("Error en el servidor de pagos");
       }
 
+      // Manejo de 3D Secure
+      if (data.status === 'charge_pending' && data.redirect_url) {
+        console.log('🔄 Redirigiendo a 3D Secure:', data.redirect_url);
+        sessionStorage.setItem('pending_payment_id', data.transaction_id);
+        window.location.href = data.redirect_url;
+        return;
+      }
+
       console.log('✅ Pago procesado exitosamente:', data.transaction_id);
-      
       onSuccess(data.transaction_id);
       setLoading(false);
 
     } catch (err: any) {
       setLoading(false);
-      console.error('Payment Error:', err);
+      console.error('Payment Error Details:', err);
       
       // Mapeo de errores de la Edge Function o OpenPay
       const errorCode = err.code || err.error_code || 0;
       if (errorCode === 3001) {
-        setError("Tarjeta rechazada: El pago no pudo ser realizado, intenta de nuevo.");
+        setError("Tarjeta rechazada por el banco emisor.");
       } else if (errorCode === 3002) {
-        setError("Tarjeta expirada. Por favor usa otra tarjeta.");
+        setError("Tarjeta expirada. Por favor usa otra.");
       } else if (errorCode === 3003) {
-        setError("Fondos insuficientes: Tu pago no pudo ser realizado. Intenta con otra tarjeta.");
+        setError("Fondos insuficientes.");
+      } else if (errorCode === 3004) {
+        setError("Tarjeta rechazada: La tarjeta tiene restricciones de uso.");
+      } else if (errorCode === 3005) {
+        setError("Riesgo de fraude detectado por el banco.");
+      } else if (err.message) {
+        setError(err.message);
       } else {
-        setError("Ocurrió un error, intenta de nuevo o comunícate con tu banco.");
+        setError("Ocurrió un error inesperado. Intenta de nuevo o contacta a soporte.");
       }
     }
+
   };
 
   return (

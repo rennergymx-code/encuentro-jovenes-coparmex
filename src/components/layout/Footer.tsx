@@ -98,9 +98,17 @@ export default function Footer({ onNavigate }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <a href="mailto:contacto@coparmexsonoranorte.org.mx" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium mt-6">
+                <Link 
+                   to="/contacto"
+                   className="text-slate-400 hover:text-branding-orange transition-colors text-sm font-bold uppercase tracking-wider"
+                 >
+                   Contacto
+                 </Link>
+              </li>
+              <li>
+                <a href="mailto:atencion@coparmexsonoranorte.org.mx" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium mt-6">
                   <Mail className="w-4 h-4 text-branding-orange" />
-                  contacto@coparmex.org
+                  atencion@coparmexsonoranorte.org.mx
                 </a>
               </li>
             </ul>
@@ -146,8 +154,13 @@ export default function Footer({ onNavigate }: FooterProps) {
             </Link>
           </div>
 
-          <div className="flex items-center gap-6 opacity-30 grayscale hover:grayscale-0 transition-all">
-            <img src="/assets/logos/logo-white-h.png" alt="Coparmex Horizontal" className="h-4 w-auto" />
+          <div className="flex flex-col items-end gap-2 text-right">
+            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest hidden md:block">
+              Las transacciones serán efectuadas mediante la pasarela de Openpay.
+            </p>
+            <div className="flex items-center gap-6 opacity-30 grayscale hover:grayscale-0 transition-all">
+              <img src="/assets/logos/logo-white-h.png" alt="Coparmex Horizontal" className="h-4 w-auto" />
+            </div>
           </div>
         </div>
       </div>
