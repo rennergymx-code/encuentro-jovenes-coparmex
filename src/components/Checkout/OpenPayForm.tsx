@@ -153,16 +153,14 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
       const errorCode = Number(err.code || err.error_code || 0);
 
       // Errores específicos de OpenPay (Checklist BBVA)
-      if (errorCode === 3001) {
-        setError("Tarjeta rechazada por el banco emisor. Por favor contacta a tu banco.");
+      if (errorCode === 3005 || errorCode === 3001 || errorCode === 3004) {
+        setError("Hubo un problema al procesar el pago con su tarjeta. Por favor intente con otra tarjeta o contacte a su banco.");
       } else if (errorCode === 3002) {
         setError("Tarjeta expirada. Por favor verifica la fecha o usa otra tarjeta.");
       } else if (errorCode === 3003) {
         setError("Fondos insuficientes en la cuenta.");
-      } else if (errorCode === 3004) {
-        setError("Tarjeta rechazada: La tarjeta tiene restricciones para compras en línea.");
-      } else if (errorCode === 3005) {
-        setError("Riesgo de fraude detectado por el banco o sistema de seguridad. Intenta con otra tarjeta.");
+      } else if (errorCode === 2005) {
+        setError("La fecha de expiración de la tarjeta es anterior a la fecha actual.");
       } else if (errorCode === 2005) {
         setError("La fecha de expiración de la tarjeta es anterior a la fecha actual.");
       } else if (errorCode === 1001) {
