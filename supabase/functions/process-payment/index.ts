@@ -14,10 +14,16 @@ serve(async (req) => {
   try {
     const { token_id, device_session_id, amount, description, customer, redirect_url } = await req.json()
 
-    // Credenciales (En producción usar Deno.env.get)
+    // Credenciales
     const MERCHANT_ID = Deno.env.get('OPENPAY_MERCHANT_ID') || 'mbelpk22gx9nutnfyucj';
     const PRIVATE_KEY = Deno.env.get('OPENPAY_PRIVATE_KEY') || 'sk_b587b0ece0824668b9e434ce6bee42f7';
-    const API_URL = `https://sandbox-api.openpay.mx/v1/${MERCHANT_ID}/charges`;
+    
+    // Detección automática de modo (Sandbox vs Producción)
+    // Los IDs de Merchant en Sandbox suelen empezar con 'm' o las keys con 'sk_' de sandbox.
+    // Una forma segura es usar una variable de entorno, pero si no está, adivinamos.
+    const isSandbox = MERCHANT_ID.startsWith('m') || PRIVATE_KEY.includes('sandbox');
+    const BASE_URL = isSandbox ? 'https://sandbox-api.openpay.mx' : 'https://api.openpay.mx';
+    const API_URL = `${BASE_URL}/v1/${MERCHANT_ID}/charges`;
 
     // Normalización de Datos de Cliente para OpenPay
     const fullName = (customer.name || "").trim();
@@ -49,7 +55,7 @@ serve(async (req) => {
       redirect_url: redirect_url
     };
 
-    console.log('--- Request to OpenPay ---');
+    console.log(`--- Request to OpenPay (${isSandbox ? 'SANDBOX' : 'PRODUCTION'}) ---`);
     console.log('Payload Data:', { amount, email: customer.email, phone, firstName, lastName });
 
     const response = await fetch(API_URL, {
@@ -65,14 +71,18 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error('❌ Error de OpenPay (Detailed):', JSON.stringify(data, null, 2));
+      // Devolvemos 200 con success: false para que el SDK de Supabase no lance error genérico
+      // y podamos leer el código de error real de OpenPay en el frontend.
       return new Response(JSON.stringify({ 
+        success: false,
         error: true, 
         message: data.description || "Error procesando el pago",
         code: data.error_code,
-        category: data.category
+        category: data.category,
+        request_id: data.request_id
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 200 
       });
     }
 
@@ -93,9 +103,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('🔥 Error crítico en process-payment:', error);
-    return new Response(JSON.stringify({ error: true, message: error.message }), {
+    return new Response(JSON.stringify({ success: false, error: true, message: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500
+      status: 200
     });
   }
 

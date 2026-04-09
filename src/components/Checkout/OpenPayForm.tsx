@@ -120,9 +120,17 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
         }
       });
 
+      // Manejo de errores de la Edge Function (Ahora devuelve 200 con success: false para errores de negocio)
+      if (funcError) {
+        throw funcError;
+      }
 
-      if (funcError || !data || data.error) {
-        throw data || funcError || new Error("Error en el servidor de pagos");
+      if (data && data.success === false) {
+        throw data;
+      }
+
+      if (!data) {
+        throw new Error("No se recibió respuesta del servidor de pagos");
       }
 
       // Manejo de 3D Secure
@@ -142,21 +150,30 @@ const OpenPayForm: React.FC<OpenPayFormProps> = ({ amount, description, customer
       console.error('Payment Error Details:', err);
       
       // Mapeo de errores de la Edge Function o OpenPay
-      const errorCode = err.code || err.error_code || 0;
+      const errorCode = Number(err.code || err.error_code || 0);
+
+      // Errores específicos de OpenPay (Checklist BBVA)
       if (errorCode === 3001) {
-        setError("Tarjeta rechazada por el banco emisor.");
+        setError("Tarjeta rechazada por el banco emisor. Por favor contacta a tu banco.");
       } else if (errorCode === 3002) {
-        setError("Tarjeta expirada. Por favor usa otra.");
+        setError("Tarjeta expirada. Por favor verifica la fecha o usa otra tarjeta.");
       } else if (errorCode === 3003) {
-        setError("Fondos insuficientes.");
+        setError("Fondos insuficientes en la cuenta.");
       } else if (errorCode === 3004) {
-        setError("Tarjeta rechazada: La tarjeta tiene restricciones de uso.");
+        setError("Tarjeta rechazada: La tarjeta tiene restricciones para compras en línea.");
       } else if (errorCode === 3005) {
-        setError("Riesgo de fraude detectado por el banco.");
+        setError("Riesgo de fraude detectado por el banco o sistema de seguridad. Intenta con otra tarjeta.");
+      } else if (errorCode === 2005) {
+        setError("La fecha de expiración de la tarjeta es anterior a la fecha actual.");
+      } else if (errorCode === 1001) {
+        setError("Los campos del formulario tienen un formato inválido.");
       } else if (err.message) {
-        setError(err.message);
+        // Mostrar mensaje descriptivo si viene de OpenPay
+        setError(err.message === "Edge Function returned a non-2xx status code" 
+          ? "Error de conexión con el banco. Intenta de nuevo en unos momentos." 
+          : err.message);
       } else {
-        setError("Ocurrió un error inesperado. Intenta de nuevo o contacta a soporte.");
+        setError("Ocurrió un error inesperado al procesar el pago. Por favor intenta de nuevo.");
       }
     }
 
